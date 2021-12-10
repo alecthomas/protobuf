@@ -30,11 +30,15 @@ func TestImports(t *testing.T) {
 	tests := []struct {
 		name   string
 		source string
-		want   []string
+		want   []*Import
 	}{{
 		name:   "parses a single import correctly",
 		source: `import "foo/bar/test.proto"`,
-		want:   []string{"foo/bar/test.proto"},
+		want:   []*Import{{Name: "foo/bar/test.proto", Public: false}},
+	}, {
+		name:   "parses public imports correctly",
+		source: `import public "foo/bar/test.proto"`,
+		want:   []*Import{{Name: "foo/bar/test.proto", Public: true}},
 	}}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -50,10 +54,10 @@ func TestImports(t *testing.T) {
 	}
 }
 
-func imports(from *Proto) []string {
-	var result []string
+func imports(from *Proto) []*Import {
+	var result []*Import
 	for _, entity := range from.Entries {
-		if entity.Import != "" {
+		if entity.Import != nil {
 			result = append(result, entity.Import)
 		}
 	}
