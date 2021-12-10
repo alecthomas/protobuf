@@ -3,22 +3,15 @@ syntax = "proto2";
 import "google/protobuf/descriptor.proto";
 
 option (structural_option) = {
-  s: "foo"
-  i: 42
-  inner {
-   s: "bar"
-   inner: {
-   s: "foobar"
-   }
-  }
+  s: ["foo", "foo2"]
+  inner { inner: [{s: "foobar"}, {s: "foobar2"}] }
+  inner { s: "bar2" }
   b: true
 };
 
 message Test {
-  optional string s = 1;
-  optional int32 i = 2;
-  optional bool b = 3;
-  optional Test inner = 4;
+  repeated string s = 1;
+  repeated Test inner = 4;
 }
 
 extend google.protobuf.FileOptions {
