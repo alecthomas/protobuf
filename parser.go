@@ -5,6 +5,7 @@ package protoparser
 import (
 	"fmt"
 	"io"
+	"math/big"
 
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
@@ -40,13 +41,12 @@ type Option struct {
 type Value struct {
 	Pos lexer.Position
 
-	String    *string  `  @String`
-	Number    *float64 `| ("-" | "+")? @Float`
-	Int       *int64   `| ("-" | "+")? @Int`
-	Bool      *bool    `| (@"true" | "false")`
-	Reference *string  `| @("."? Ident { "." Ident })`
-	Map       *Map     `| @@`
-	Array     *Array   `| @@`
+	String    *string    `  @String`
+	Number    *big.Float `| ("-" | "+")? (@Float | @Int)`
+	Bool      *bool      `| (@"true" | "false")`
+	Reference *string    `| @("."? Ident { "." Ident })`
+	Map       *Map       `| @@`
+	Array     *Array     `| @@`
 }
 
 type Array struct {
@@ -280,7 +280,7 @@ func Parse(filename string, r io.Reader) (*Proto, error) {
 	p := &Proto{}
 	err := parser.Parse(filename, r, p)
 	if err != nil {
-		return p, fmt.Errorf("parse failed: %w", err)
+		return p, err
 	}
 	return p, nil
 }
@@ -289,7 +289,7 @@ func ParseString(filename string, source string) (*Proto, error) {
 	p := &Proto{}
 	err := parser.ParseString(filename, source, p)
 	if err != nil {
-		return p, fmt.Errorf("parse failed: %w", err)
+		return p, err
 	}
 	return p, nil
 }
