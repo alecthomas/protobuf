@@ -9,6 +9,7 @@ import (
 
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
+	"github.com/pkg/errors"
 )
 
 type Proto struct {
@@ -280,7 +281,7 @@ func Parse(filename string, r io.Reader) (*Proto, error) {
 	p := &Proto{}
 	err := parser.Parse(filename, r, p)
 	if err != nil {
-		return p, err
+		return p, errors.WithStack(err)
 	}
 	return p, nil
 }
@@ -289,7 +290,7 @@ func ParseString(filename string, source string) (*Proto, error) {
 	p := &Proto{}
 	err := parser.ParseString(filename, source, p)
 	if err != nil {
-		return p, err
+		return p, errors.WithStack(err)
 	}
 	return p, nil
 }
