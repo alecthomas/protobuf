@@ -45,27 +45,27 @@ type Value struct {
 	Number    *big.Float `| ("-" | "+")? (@Float | @Int)`
 	Bool      *bool      `| (@"true" | "false")`
 	Reference *string    `| @("."? Ident { "." Ident })`
-	Map       *Map       `| @@`
+	ProtoText *ProtoText `| "{" @@ "}"`
 	Array     *Array     `| @@`
+}
+
+type ProtoText struct {
+	Pos lexer.Position
+
+	Fields []ProtoTextField `( @@ ( "," | ";" )? )*`
+}
+
+type ProtoTextField struct {
+	Pos lexer.Position
+
+	Name  string `@Ident `
+	Value *Value `( ":"? @@ )`
 }
 
 type Array struct {
 	Pos lexer.Position
 
 	Elements []*Value `"[" [ @@ { [ "," ] @@ } ] "]"`
-}
-
-type Map struct {
-	Pos lexer.Position
-
-	Entries []*MapEntry `"{" (@@ ("," | ";")?)* "}"`
-}
-
-type MapEntry struct {
-	Pos lexer.Position
-
-	Key   *Value `@@`
-	Value *Value `":" @@`
 }
 
 type Extensions struct {
