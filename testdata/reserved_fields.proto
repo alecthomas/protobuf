@@ -1,0 +1,10 @@
+syntax = "proto2";
+package test.pkg;
+
+message ReservedTest {
+  reserved 'foo';
+  reserved 1;
+  reserved "bar";
+  reserved 2, 15, 9 to 11, 54, 67 to 100;
+  reserved "foobar1", "foobar2";
+}

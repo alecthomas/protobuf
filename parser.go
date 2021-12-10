@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"strings"
 
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
@@ -82,14 +83,14 @@ type Extensions struct {
 type Reserved struct {
 	Pos lexer.Position
 
-	Reserved []Range `"reserved" @@ { "," @@ }`
+	Ranges     []Range  `( @@ { "," @@ }`
+	FieldNames []string `  | @String { "," @String } )`
 }
 
 type Range struct {
-	Ident string `  @String`
-	Start int    `| ( @Int`
-	End   *int   `  [ "to" ( @Int`
-	Max   bool   `           | @"max" ) ] )`
+	Start int  `( @Int`
+	End   *int `  [ "to" ( @Int`
+	Max   bool `           | @"max" ) ] )`
 }
 
 type Extend struct {
@@ -136,7 +137,7 @@ type EnumEntry struct {
 
 	Value    *EnumValue `  @@`
 	Option   *Option    `| "option" @@`
-	Reserved *Reserved  `| @@`
+	Reserved *Reserved  `| "reserved" @@`
 }
 
 type EnumValue struct {
@@ -163,7 +164,7 @@ type MessageEntry struct {
 	Message    *Message    ` | @@`
 	Oneof      *Oneof      ` | @@`
 	Extend     *Extend     ` | @@`
-	Reserved   *Reserved   ` | @@`
+	Reserved   *Reserved   ` | "reserved" @@`
 	Extensions *Extensions ` | @@`
 	Field      *Field      ` | @@ ) { ";" }`
 }
@@ -278,11 +279,28 @@ type MapType struct {
 	Value *Type `"," @@ ">"`
 }
 
-var parser = participle.MustBuild(&Proto{}, participle.UseLookahead(2), participle.Unquote("String"))
-
 // Parse protobuf.
 func Parse(filename string, r io.Reader) (*Proto, error) {
 	p := &Proto{}
+
+	l := lexer.MustSimple([]lexer.Rule{
+		{"String", `"(\\"|[^"])*"|'(\\'|[^'])*'`, nil},
+		{"Float", `[-+]?\d*\.\d+`, nil},
+		{"Int", `[-+]?\d+`, nil},
+		{"Ident", `[a-zA-Z_]([a-zA-Z_0-9])*`, nil},
+		{"Whitespace", `[ \t\n\r]+`, nil},
+		{"BlockComment", `/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/`, nil},
+		{"LineComment", `//(.*)[^\n]*\n`, nil},
+		{".", `.`, nil},
+	})
+
+	parser := participle.MustBuild(
+		&Proto{},
+		participle.UseLookahead(2),
+		participle.Unquote("String"),
+		participle.Lexer(l),
+		participle.Elide("Whitespace", "LineComment", "BlockComment"),
+	)
 	err := parser.Parse(filename, r, p)
 	if err != nil {
 		return p, err
@@ -291,10 +309,5 @@ func Parse(filename string, r io.Reader) (*Proto, error) {
 }
 
 func ParseString(filename string, source string) (*Proto, error) {
-	p := &Proto{}
-	err := parser.ParseString(filename, source, p)
-	if err != nil {
-		return p, err
-	}
-	return p, nil
+	return Parse(filename, strings.NewReader(source))
 }
