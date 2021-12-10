@@ -25,6 +25,9 @@ linters:
     - revive
     - scopelint
     - wsl
+    - paralleltest
+    - wrapcheck
+    - testpackage
 
 linters-settings:
   govet:
