@@ -273,7 +273,7 @@ type MapType struct {
 	Value *Type `"," @@ ">"`
 }
 
-var parser = participle.MustBuild(&Proto{}, participle.UseLookahead(2))
+var parser = participle.MustBuild(&Proto{}, participle.UseLookahead(2), participle.Unquote("String"))
 
 // Parse protobuf.
 func Parse(filename string, r io.Reader) (*Proto, error) {

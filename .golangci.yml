@@ -28,6 +28,7 @@ linters:
     - paralleltest
     - wrapcheck
     - testpackage
+    - varnamelen
 
 linters-settings:
   govet:
