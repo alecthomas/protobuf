@@ -1,4 +1,4 @@
-// Package parser contains a protobuf parser.
+// Package protoparser contains a protobuf parser.
 // nolint: govet, golint
 package protoparser
 
@@ -246,7 +246,7 @@ func (s *Scalar) Parse(lex *lexer.PeekingLexer) error {
 	if err != nil {
 		return fmt.Errorf("failed to peek next token: %w", err)
 	}
-	v, ok := stringToScalar[token.Value]
+	scalar, ok := stringToScalar[token.Value]
 	if !ok {
 		return participle.NextMatch
 	}
@@ -254,7 +254,7 @@ func (s *Scalar) Parse(lex *lexer.PeekingLexer) error {
 	if err != nil {
 		return fmt.Errorf("failed to read next token: %w", err)
 	}
-	*s = v
+	*s = scalar
 	return nil
 }
 
