@@ -284,3 +284,12 @@ func Parse(filename string, r io.Reader) (*Proto, error) {
 	}
 	return p, nil
 }
+
+func ParseString(filename string, source string) (*Proto, error) {
+	p := &Proto{}
+	err := parser.ParseString(filename, source, p)
+	if err != nil {
+		return p, fmt.Errorf("parse failed: %w", err)
+	}
+	return p, nil
+}

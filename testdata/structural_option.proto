@@ -1,0 +1,26 @@
+syntax = "proto2";
+
+import "google/protobuf/descriptor.proto";
+
+option (structural_option) = {
+  s: "foo"
+  i: 42
+  inner {
+   s: "bar"
+   inner: {
+   s: "foobar"
+   }
+  }
+  b: true
+};
+
+message Test {
+  optional string s = 1;
+  optional int32 i = 2;
+  optional bool b = 3;
+  optional Test inner = 4;
+}
+
+extend google.protobuf.FileOptions {
+  optional Test structural_option = 33000;
+}
