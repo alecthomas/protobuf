@@ -58,7 +58,7 @@ type ProtoText struct {
 type ProtoTextField struct {
 	Pos lexer.Position
 
-	Name  string `@Ident `
+	Name  string `(@Ident | ( "[" @("."? Ident { "." Ident }) "]" ))`
 	Value *Value `( ":"? @@ )`
 }
 
