@@ -22,12 +22,17 @@ type Entry struct {
 
 	Syntax  string   `  "syntax" "=" @String`
 	Package string   `| "package" @(Ident { "." Ident })`
-	Import  string   `| "import" @String`
+	Import  *Import  `| @@`
 	Message *Message `| @@`
 	Service *Service `| @@`
 	Enum    *Enum    `| @@`
 	Option  *Option  `| "option" @@`
 	Extend  *Extend  `| @@`
+}
+
+type Import struct {
+	Public bool   `"import" @("public")?`
+	Name   string `@String`
 }
 
 type Option struct {
