@@ -162,24 +162,24 @@ type MessageEntry struct {
 	Enum       *Enum       `( @@`
 	Option     *Option     ` | "option" @@`
 	Message    *Message    ` | @@`
-	Oneof      *Oneof      ` | @@`
+	Oneof      *OneOf      ` | @@`
 	Extend     *Extend     ` | @@`
 	Reserved   *Reserved   ` | "reserved" @@`
 	Extensions *Extensions ` | @@`
 	Field      *Field      ` | @@ ) { ";" }`
 }
 
-type Oneof struct {
+type OneOf struct {
 	Pos lexer.Position
 
 	Name    string        `"oneof" @Ident`
-	Entries []*OneofEntry `"{" { @@ { ";" } } "}"`
+	Entries []*OneOfEntry `"{" { @@ { ";" } } "}"`
 }
 
-type OneofEntry struct {
+type OneOfEntry struct {
 	Pos lexer.Position
 
-	Field  *Field  `  @@`
+	Field  *Field  `@@`
 	Option *Option `| "option" @@`
 }
 
@@ -285,9 +285,9 @@ func Parse(filename string, r io.Reader) (*Proto, error) {
 
 	l := lexer.MustSimple([]lexer.Rule{
 		{"String", `"(\\"|[^"])*"|'(\\'|[^'])*'`, nil},
-		{"Float", `[-+]?\d*\.\d+`, nil},
-		{"Int", `(0x[0-9A-Fa-f]+)|([-+]?\d+)`, nil},
 		{"Ident", `[a-zA-Z_]([a-zA-Z_0-9])*`, nil},
+		{"Float", `[-+]?((\d*\.\d+)|inf)`, nil},
+		{"Int", `(0[xX][0-9A-Fa-f]+)|([-+]?\d+)`, nil},
 		{"Whitespace", `[ \t\n\r]+`, nil},
 		{"BlockComment", `/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/`, nil},
 		{"LineComment", `//(.*)[^\n]*\n`, nil},
