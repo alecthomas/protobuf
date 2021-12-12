@@ -83,14 +83,14 @@ type Extensions struct {
 type Reserved struct {
 	Pos lexer.Position
 
-	Ranges     []Range  `( @@ { "," @@ }`
-	FieldNames []string `  | @String { "," @String } )`
+	Ranges     []Range  `@@ { "," @@ }`
+	FieldNames []string `| @String { "," @String }`
 }
 
 type Range struct {
-	Start int  `( @Int`
+	Start int  `@Int`
 	End   *int `  [ "to" ( @Int`
-	Max   bool `           | @"max" ) ] )`
+	Max   bool `           | @"max" ) ]`
 }
 
 type Extend struct {
@@ -288,10 +288,10 @@ func Parse(filename string, r io.Reader) (*Proto, error) {
 		{"Ident", `[a-zA-Z_]([a-zA-Z_0-9])*`, nil},
 		{"Float", `[-+]?((\d*\.\d+)|inf)`, nil},
 		{"Int", `(0[xX][0-9A-Fa-f]+)|([-+]?\d+)`, nil},
-		{"Whitespace", `[ \t\n\r]+`, nil},
+		{"Whitespace", `[ \t\n\r\s]+`, nil},
 		{"BlockComment", `/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/`, nil},
 		{"LineComment", `//(.*)[^\n]*\n`, nil},
-		{".", `.`, nil},
+		{"Symbols", `[=\{\}\[\]\(\)\<\>\.,;:]`, nil},
 	})
 
 	parser := participle.MustBuild(

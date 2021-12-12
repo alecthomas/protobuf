@@ -1,5 +1,4 @@
 syntax = "proto2";
-package test.pkg;
 
 // Test 1
 /**
