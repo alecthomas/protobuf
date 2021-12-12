@@ -1,0 +1,9 @@
+syntax = "proto2";
+
+// Test 1
+/**
+  Test 2
+ */
+message Test {
+  repeated string s = 1;
+}

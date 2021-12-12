@@ -16,11 +16,11 @@ func TestParser(t *testing.T) {
 		t.Run(file, func(t *testing.T) {
 			r, err := os.Open(file)
 			if err != nil {
-				t.Fatal(err)
+				t.Error(err)
 			}
 			_, err = Parse(file, r)
 			if err != nil {
-				t.Fatal(err)
+				t.Error(err)
 			}
 		})
 	}
@@ -33,7 +33,7 @@ func TestImports(t *testing.T) {
 		want   []*Import
 	}{{
 		name:   "parses a single import correctly",
-		source: `import "foo/bar/test.proto"`,
+		source: `import 'foo/bar/test.proto'`,
 		want:   []*Import{{Name: "foo/bar/test.proto", Public: false}},
 	}, {
 		name:   "parses public imports correctly",
@@ -44,7 +44,7 @@ func TestImports(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := ParseString("test.proto", tt.source)
 			if err != nil {
-				t.Fatalf("got unexpected error: %s", err)
+				t.Fatalf("got unexpected error: %v", err)
 			}
 			result := imports(got)
 			if !reflect.DeepEqual(result, tt.want) {
