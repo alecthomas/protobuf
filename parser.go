@@ -286,7 +286,7 @@ func Parse(filename string, r io.Reader) (*Proto, error) {
 	l := lexer.MustSimple([]lexer.Rule{
 		{"String", `"(\\"|[^"])*"|'(\\'|[^'])*'`, nil},
 		{"Ident", `[a-zA-Z_]([a-zA-Z_0-9])*`, nil},
-		{"Float", `[-+]?((\d*\.\d+)|inf)`, nil},
+		{"Float", `[-+]?(\d*\.\d+([eE]\d+)?|\d+[eE]\d+|inf)`, nil},
 		{"Int", `(0[xX][0-9A-Fa-f]+)|([-+]?\d+)`, nil},
 		{"Whitespace", `[ \t\n\r\s]+`, nil},
 		{"BlockComment", `/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/`, nil},
