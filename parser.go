@@ -291,7 +291,7 @@ func Parse(filename string, r io.Reader) (*Proto, error) {
 		{"Whitespace", `[ \t\n\r\s]+`, nil},
 		{"BlockComment", `/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/`, nil},
 		{"LineComment", `//(.*)[^\n]*\n`, nil},
-		{"Symbols", `[=\{\}\[\]\(\)\<\>\.,;:]`, nil},
+		{"Symbols", `[={}\[\]()<>.,;:]`, nil},
 	})
 
 	parser := participle.MustBuild(
