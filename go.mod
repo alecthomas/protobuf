@@ -1,4 +1,4 @@
-module github.com/alecthomas/protoparser
+module github.com/alecthomas/protobuf
 
 go 1.17
 

@@ -1,4 +1,4 @@
-package protoparser
+package parser
 
 import (
 	"os"
@@ -8,7 +8,7 @@ import (
 )
 
 func TestParser(t *testing.T) {
-	files, err := filepath.Glob("testdata/*.proto")
+	files, err := filepath.Glob("../testdata/*.proto")
 	if err != nil {
 		t.Fatal(err)
 	}

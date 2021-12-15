@@ -1,6 +1,6 @@
 //go:build conformance
 
-package protoparser
+package parser
 
 import (
 	"os"
@@ -9,7 +9,7 @@ import (
 )
 
 func TestConformance(t *testing.T) {
-	files, err := filepath.Glob("testdata/conformance/*.proto")
+	files, err := filepath.Glob("../testdata/conformance/*.proto")
 	if err != nil {
 		t.Fatal(err)
 	}

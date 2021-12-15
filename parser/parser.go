@@ -1,6 +1,6 @@
 // Package protoparser contains a protobuf parser.
 // nolint: govet, golint
-package protoparser
+package parser
 
 import (
 	"fmt"
