@@ -1,4 +1,4 @@
-// Package protoparser contains a protobuf parser.
+// Package parser contains a protobuf parser.
 // nolint: govet, golint
 package parser
 
