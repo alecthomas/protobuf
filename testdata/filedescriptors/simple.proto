@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+message M1 {
+  optional string s = 1;
+}
+
+message M2 {
+  optional string s = 1;
+  optional int32 i = 2;
+}

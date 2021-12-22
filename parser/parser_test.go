@@ -63,3 +63,22 @@ func imports(from *Proto) []*Import {
 	}
 	return result
 }
+
+func TestProtofiles(t *testing.T) {
+	files, err := filepath.Glob("../testdata/*.proto")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, file := range files {
+		t.Run(file, func(t *testing.T) {
+			r, err := os.Open(file)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = Parse(file, r)
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
