@@ -39,7 +39,7 @@ type Import struct {
 type Option struct {
 	Pos lexer.Position
 
-	Name  string  `( "(" @("."? Ident { "." Ident }) ")" | @("."? Ident { "." Ident }) )`
+	Name  string  `( ( "(" @("."? Ident { "." Ident }) ")" | @("."? Ident { "." Ident }) ) "."? )+`
 	Attr  *string `[ @("."? Ident { "." Ident }) ]`
 	Value *Value  `"=" @@`
 }
@@ -64,7 +64,8 @@ type ProtoText struct {
 type ProtoTextField struct {
 	Pos lexer.Position
 
-	Name  string `(@Ident | ( "[" @("."? Ident { "." Ident }) "]" ))`
+	Name  string `(  @Ident`
+	Type  string `  | "[" @("."? Ident { ("." | "/") Ident }) "]" )`
 	Value *Value `( ":"? @@ )`
 }
 
@@ -286,12 +287,12 @@ func Parse(filename string, r io.Reader) (*Proto, error) {
 	l := lexer.MustSimple([]lexer.Rule{
 		{"String", `"(\\"|[^"])*"|'(\\'|[^'])*'`, nil},
 		{"Ident", `[a-zA-Z_]([a-zA-Z_0-9])*`, nil},
-		{"Float", `[-+]?(\d*\.\d+([eE]\d+)?|\d+[eE]\d+|inf)`, nil},
-		{"Int", `(0[xX][0-9A-Fa-f]+)|([-+]?\d+)`, nil},
+		{"Float", `[-+]?(\d*\.\d+([eE][-+]?\d+)?|\d+[eE][-+]?\d+|inf)`, nil},
+		{"Int", `[-+]?(0[xX][0-9A-Fa-f]+)|([-+]?\d+)`, nil},
 		{"Whitespace", `[ \t\n\r\s]+`, nil},
 		{"BlockComment", `/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/`, nil},
 		{"LineComment", `//(.*)[^\n]*\n`, nil},
-		{"Symbols", `[={}\[\]()<>.,;:]`, nil},
+		{"Symbols", `[/={}\[\]()<>.,;:]`, nil},
 	})
 
 	parser := participle.MustBuild(

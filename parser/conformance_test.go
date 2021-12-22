@@ -1,5 +1,3 @@
-//go:build conformance
-
 package parser
 
 import (
