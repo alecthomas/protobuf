@@ -200,7 +200,7 @@ message CustomOptionOtherValues {
   option (float_opt) = 12.3456789;
   option (double_opt) = 1.234567890123456789;
   option (string_opt) = "Hello, \"World\"";
-  option (bytes_opt) = "Hello\0World";
+  // option (bytes_opt) = "Hello\0World";
   option (enum_opt) = TEST_OPTION_ENUM_TYPE2;
 }
 
