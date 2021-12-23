@@ -1,0 +1,7 @@
+syntax = "proto3";
+package pkg;
+
+message M3 {
+  optional string s = 1;
+}
+

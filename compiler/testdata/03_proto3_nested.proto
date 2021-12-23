@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package pkg;
+
+message Nest {
+  message Egg {
+    optional string chick = 1;
+  }
+  optional .pkg.Nest.Egg egg1 = 1;
+  optional pkg.Nest.Egg egg2 = 2;
+  optional Nest.Egg egg3 = 3;
+  optional Egg egg4 = 4;
+}

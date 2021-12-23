@@ -1,0 +1,24 @@
+syntax = "proto2";
+
+message M1 {
+  optional double a_double = 1;
+  optional float a_float = 2;
+  optional int32 a_int32 = 3;
+  optional int64 a_int64 = 4;
+  optional uint32 a_uint32 = 5;
+  optional uint64 a_uint64 = 6;
+  optional sint32 a_sint32 = 7;
+  optional sint64 a_sint64 = 8;
+  optional fixed32 a_fixed32 = 9;
+  optional fixed64 a_fixed64 = 10;
+  optional sfixed32 a_sfixed32 = 11;
+  optional sfixed64 a_sfixed64 = 12;
+  optional bool a_bool = 13;
+  optional string a_string = 14;
+  optional bytes a_bytes = 15;
+}
+
+message M2 {
+  optional string s = 1;
+  optional int32 i = 2;
+}
