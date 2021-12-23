@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+message M {
+  message Nest {
+    message Egg {
+      optional string chick = 1;
+    }
+  }
+  optional M.Nest.Egg egg1 = 1;
+  optional .M.Nest.Egg egg2 = 2;
+  optional Nest.Egg egg3 = 3;
+  optional M.Nest nest1 = 4;
+  optional .M.Nest nest2 = 5;
+  optional Nest nest3 = 6;
+  optional M2.Inner inner1 = 7;
+  optional .M2.Inner inner2 = 8;
+}
+
+message M2 {
+  message Inner {
+    optional string s = 1;
+  }
+  repeated M.Nest nest = 1;
+  repeated .M.Nest.Egg egg = 2;
+}
+
+message LinkedList {
+  optional LinkedList next = 1;
+}
+
+message LinkedList2 {
+  optional .LinkedList2 next = 1;
+}
