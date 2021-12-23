@@ -3,8 +3,9 @@ package parser
 import (
 	"os"
 	"path/filepath"
-	"reflect"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestParser(t *testing.T) {
@@ -47,8 +48,8 @@ func TestImports(t *testing.T) {
 				t.Fatalf("got unexpected error: %v", err)
 			}
 			result := imports(got)
-			if !reflect.DeepEqual(result, tt.want) {
-				t.Errorf("ParseString() got = %v, want %v", result, tt.want)
+			if !cmp.Equal(result, tt.want) {
+				t.Errorf("ParseString()\n%s", cmp.Diff(result, tt.want))
 			}
 		})
 	}

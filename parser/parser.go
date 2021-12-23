@@ -298,7 +298,7 @@ func Parse(filename string, r io.Reader) (*Proto, error) {
 	parser := participle.MustBuild(
 		&Proto{},
 		participle.UseLookahead(2),
-		participle.Unquote("String"),
+		participle.Map(unquote, "String"),
 		participle.Lexer(l),
 		participle.Elide("Whitespace", "LineComment", "BlockComment"),
 	)
