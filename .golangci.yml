@@ -29,6 +29,10 @@ linters:
     - wrapcheck
     - testpackage
     - varnamelen
+    - funlen
+    - cyclop
+    - gocognit
+    - gofumpt
 
 linters-settings:
   govet:
@@ -65,3 +69,4 @@ issues:
     # Allow creating directories with 755 permissions
     - '^(G301|G307|G107):'
     - "unless it's in another file for this package"
+    - "err113: do not define dynamic errors"
