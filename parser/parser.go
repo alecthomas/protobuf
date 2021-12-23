@@ -15,14 +15,14 @@ import (
 type Proto struct {
 	Pos lexer.Position
 
+	Syntax  string   `("syntax" "=" @String ";")?`
 	Entries []*Entry `{ @@ { ";" } }`
 }
 
 type Entry struct {
 	Pos lexer.Position
 
-	Syntax  string   `  "syntax" "=" @String`
-	Package string   `| "package" @(Ident { "." Ident })`
+	Package string   `"package" @(Ident { "." Ident })`
 	Import  *Import  `| @@`
 	Message *Message `| @@`
 	Service *Service `| @@`
