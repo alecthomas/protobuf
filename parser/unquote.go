@@ -24,6 +24,7 @@ var escapeTable = map[rune]rune{
 	'"':  '\x22',
 	'?':  '\x3F',
 }
+
 var stateBase = map[unquoteState]int{
 	uqHex: 16, uqOctal: 8,
 }
