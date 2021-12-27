@@ -1,0 +1,11 @@
+syntax = "proto3";
+package pkg2;
+
+import "01_proto3_pkg.proto";
+import "05_proto3_import.proto";
+
+message M6 {
+  optional pkg.M3 m3 = 3;
+  optional pkg2.M5 m5 = 5;
+}
+

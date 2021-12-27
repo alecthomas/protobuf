@@ -47,7 +47,9 @@ COMPILER_PB_FILES = $(patsubst compiler/testdata/%.proto,compiler/testdata/pb/%.
 pb: $(COMPILER_PB_FILES)  ## Generate binary FileDescriptorSet as pb files for compiler/testdata/*.proto
 
 compiler/testdata/pb/%.pb: compiler/testdata/%.proto
-	protoc -I compiler/testdata -o $@ $<
+	protoc --include_imports -I compiler/testdata -o $@ $<
+	# special case: don't include imports
+	protoc -I compiler/testdata -o compiler/testdata/pb/06_proto3_import_transitive_no_include.pb compiler/testdata/06_proto3_import_transitive.proto
 
 clean::
 	rm -rf compiler/testdata/pb/*.pb

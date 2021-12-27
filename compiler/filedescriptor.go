@@ -1,6 +1,3 @@
-// Package compiler creates FileDescriptorProtos from a parser.Parse()
-// result. It is assumed that the parse result is semantically
-// correct and would compile with protoc.
 package compiler
 
 import (
@@ -11,13 +8,6 @@ import (
 	pb "google.golang.org/protobuf/types/descriptorpb"
 )
 
-type fdBuilder struct {
-	proto3   bool
-	fileDesc *pb.FileDescriptorProto
-	types    types
-	pkg      string
-}
-
 type messageBuilder struct {
 	proto3      bool
 	messageDesc *pb.DescriptorProto
@@ -25,59 +15,43 @@ type messageBuilder struct {
 	scope       []string
 }
 
-func NewFileDescriptor(file string, p *parser.Proto) *pb.FileDescriptorProto {
-	b := &fdBuilder{
-		proto3: p.Syntax == "proto3",
-		pkg:    protoPkg(p),
-	}
-	b.types = analyseTypes(p)
-	b.buildFileDescriptor(file, p)
-	return b.fileDesc
-}
-
-func (b *fdBuilder) buildFileDescriptor(file string, p *parser.Proto) {
+func newFileDescriptor(ast *ast, types types) *pb.FileDescriptorProto {
+	var proto3 bool
 	var syntax *string
-	if b.proto3 {
-		s := "proto3"
-		syntax = &s
+	if ast.syntax == "proto3" {
+		proto3 = true
+		syntax = &ast.syntax
 	}
-	b.fileDesc = &pb.FileDescriptorProto{
-		Name:   &file,
-		Syntax: syntax,
+	fd := &pb.FileDescriptorProto{
+		Name:             &ast.file,
+		Syntax:           syntax,
+		Options:          newOptions(ast.options),
+		Dependency:       ast.imports,
+		PublicDependency: ast.publicImports,
 	}
-	for _, e := range p.Entries {
-		b.addEntry(e)
+	scope := []string{}
+	if ast.pkg != "" {
+		fd.Package = &ast.pkg
+		scope = append(scope, ast.pkg)
 	}
-}
+	for _, m := range ast.messages {
+		md := newMessage(m, proto3, scope, types)
+		fd.MessageType = append(fd.MessageType, md)
+	}
+	for _, s := range ast.services {
+		sd := newService(s, scope, types)
+		fd.Service = append(fd.Service, sd)
+	}
+	for _, e := range ast.enums {
+		ed := newEnum(e, scope, types)
+		fd.EnumType = append(fd.EnumType, ed)
+	}
+	for _, e := range ast.extends {
+		ed := newExtend(e, scope, types)
+		fd.Extension = append(fd.Extension, ed)
+	}
 
-func (b *fdBuilder) addEntry(e *parser.Entry) {
-	switch {
-	case e.Package != "":
-		b.fileDesc.Package = &e.Package
-	case e.Import != nil:
-		b.buildImports(e.Import)
-	case e.Message != nil:
-		scope := []string{}
-		if b.pkg != "" {
-			scope = append(scope, b.pkg)
-		}
-		m := newMessage(e.Message, b.proto3, scope, b.types)
-		b.fileDesc.MessageType = append(b.fileDesc.MessageType, m)
-	case e.Enum != nil:
-	case e.Service != nil:
-	case e.Option != nil:
-	case e.Extend != nil:
-	default:
-		panic(fmt.Sprintf("%s: cannot interpret Entry", e.Pos))
-	}
-}
-
-func (b *fdBuilder) buildImports(imp *parser.Import) {
-	b.fileDesc.Dependency = append(b.fileDesc.Dependency, imp.Name)
-	if imp.Public {
-		idx := int32(len(b.fileDesc.Dependency) - 1)
-		b.fileDesc.PublicDependency = append(b.fileDesc.PublicDependency, idx)
-	}
+	return fd
 }
 
 func newMessage(m *parser.Message, proto3 bool, scope []string, types types) *pb.DescriptorProto {
@@ -86,15 +60,11 @@ func newMessage(m *parser.Message, proto3 bool, scope []string, types types) *pb
 		scope:  append(scope, m.Name),
 		types:  types,
 	}
-	b.buildMessageDescriptor(m)
-	return b.messageDesc
-}
-
-func (b *messageBuilder) buildMessageDescriptor(pm *parser.Message) {
-	b.messageDesc = &pb.DescriptorProto{Name: &pm.Name}
-	for _, e := range pm.Entries {
+	b.messageDesc = &pb.DescriptorProto{Name: &m.Name}
+	for _, e := range m.Entries {
 		b.addEntry(e)
 	}
+	return b.messageDesc
 }
 
 func (b *messageBuilder) addEntry(e *parser.MessageEntry) {
@@ -207,4 +177,24 @@ func jsonStr(s string) *string {
 		result += strings.Title(strings.ToLower(s))
 	}
 	return &result
+}
+
+func newService(s *parser.Service, scope []string, types types) *pb.ServiceDescriptorProto {
+	panic(fmt.Sprintf("not implemented: newSeervice %v %v %v", s, scope, types))
+}
+
+func newEnum(e *parser.Enum, scope []string, types types) *pb.EnumDescriptorProto {
+	panic(fmt.Sprintf("not implemented: newEnum %v %v %v", e, scope, types))
+}
+
+func newOptions(o []*parser.Option) *pb.FileOptions {
+	if o == nil {
+		return nil
+	}
+	opts := &pb.FileOptions{}
+	return opts
+}
+
+func newExtend(e *parser.Extend, scope []string, types types) *pb.FieldDescriptorProto {
+	panic(fmt.Sprintf("not implemented: newExtend %v %v %v", e, scope, types))
 }

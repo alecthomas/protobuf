@@ -52,7 +52,7 @@ func (t types) fullName(typeName string, scope []string) string {
 			return name
 		}
 	}
-	panic(fmt.Sprintf("typeanalysis: not found: %s, %v", typeName, scope))
+	panic(fmt.Sprintf("typeanalysis: not found: %s, %v, %v", typeName, scope, t))
 }
 
 func (t types) addName(relTypeName string, scope []string) {
@@ -63,19 +63,23 @@ func (t types) addName(relTypeName string, scope []string) {
 	t[name] = true
 }
 
-func analyseTypes(p *parser.Proto) types {
+func newTypes(asts []*ast) types {
 	t := types{}
-	scope := []string{}
-	if pkg := protoPkg(p); pkg != "" {
-		scope = append(scope, pkg)
-	}
-
-	for _, e := range p.Entries {
-		if e.Message != nil {
-			analyseMessage(e.Message, scope, t)
-		}
+	for _, ast := range asts {
+		analyseTypes(ast, t)
 	}
 	return t
+}
+
+func analyseTypes(ast *ast, t types) {
+	scope := []string{}
+	if ast.pkg != "" {
+		scope = append(scope, ast.pkg)
+	}
+
+	for _, m := range ast.messages {
+		analyseMessage(m, scope, t)
+	}
 }
 
 func analyseMessage(m *parser.Message, scope []string, t types) {
@@ -87,13 +91,4 @@ func analyseMessage(m *parser.Message, scope []string, t types) {
 			analyseMessage(me.Message, scope, t)
 		}
 	}
-}
-
-func protoPkg(p *parser.Proto) string {
-	for _, e := range p.Entries {
-		if e.Package != "" {
-			return e.Package
-		}
-	}
-	return ""
 }

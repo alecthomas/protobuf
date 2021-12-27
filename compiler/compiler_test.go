@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/alecthomas/protobuf/parser"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -20,50 +19,58 @@ func requireNoError(t *testing.T, err error) {
 	}
 }
 
-func requireProtoEqual(t *testing.T, want, got proto.Message) {
-	t.Helper()
-	opts := cmp.Options{protocmp.Transform()}
-	if diff := cmp.Diff(want, got, opts); diff != "" {
-		t.Errorf("protos not equal (-want +got):\n%s", diff)
-	}
-}
-
 func requireEqual(t *testing.T, want, got interface{}) {
 	t.Helper()
-	opts := cmp.Options{protocmp.Transform()}
-	if diff := cmp.Diff(want, got, opts); diff != "" {
-		t.Errorf("not equal (-want +got):\n%s", diff)
+	var opts []cmp.Option
+	var prefix string
+	_, wantOK := want.(proto.Message) //nolint:ifshort
+	_, gotOK := got.(proto.Message)   //nolint:ifshort
+	if wantOK && gotOK {
+		opts = append(opts, protocmp.Transform())
+		prefix = "protos "
+	}
+	if diff := cmp.Diff(want, got, opts...); diff != "" {
+		t.Errorf(prefix+"not equal (-want +got):\n%s", diff)
 	}
 }
 
-func TestFiledescriptors(t *testing.T) {
+func TestFiledescriptorSet(t *testing.T) {
 	files, err := filepath.Glob("testdata/*.proto")
 	requireNoError(t, err)
-	skipFile := map[string]bool{
-		"testdata/03_proto2_nested.proto": true,
-	}
 	for _, file := range files {
 		t.Run(file, func(t *testing.T) {
-			if skipFile[file] {
-				return
-			}
-			r, err := os.Open(file)
-			requireNoError(t, err)
-			p, err := parser.Parse(file, r)
-			requireNoError(t, err)
 			fdName := strings.TrimPrefix(file, "testdata/")
-			got := NewFileDescriptor(fdName, p)
+			importPaths := []string{"testdata"}
+			includeImports := true
+			got, err := NewFileDescriptorSet([]string{fdName}, importPaths, includeImports)
+			requireNoError(t, err)
 
 			name := strings.TrimSuffix(filepath.Base(file), ".proto")
 			pbFile := "testdata/pb/" + name + ".pb"
-			pbBytes, err := os.ReadFile(pbFile)
-			requireNoError(t, err)
-			fds := &pb.FileDescriptorSet{}
-			err = proto.Unmarshal(pbBytes, fds)
-			requireNoError(t, err)
-			requireEqual(t, 1, len(fds.File))
-			want := fds.File[0]
-			requireProtoEqual(t, want, got)
+			want := loadPB(t, pbFile)
+			requireEqual(t, len(got.File), len(want.File))
+			requireEqual(t, want, got)
 		})
 	}
+}
+
+func TestNoIncludeImports(t *testing.T) {
+	importPaths := []string{"testdata"}
+	includeImports := false
+	got, err := NewFileDescriptorSet([]string{"06_proto3_import_transitive.proto"}, importPaths, includeImports)
+	requireNoError(t, err)
+
+	want := loadPB(t, "testdata/pb/06_proto3_import_transitive_no_include.pb")
+	requireEqual(t, len(got.File), len(want.File))
+	requireEqual(t, want, got)
+}
+
+func loadPB(t *testing.T, file string) *pb.FileDescriptorSet {
+	t.Helper()
+	pbBytes, err := os.ReadFile(file)
+	requireNoError(t, err)
+	fds := &pb.FileDescriptorSet{}
+	err = proto.Unmarshal(pbBytes, fds)
+	requireNoError(t, err)
+	return fds
 }
