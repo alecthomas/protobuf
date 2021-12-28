@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/alecthomas/protobuf/parser"
@@ -45,8 +46,7 @@ func newFileDescriptor(ast *ast, types types) *pb.FileDescriptorProto {
 		fd.Service = append(fd.Service, sd)
 	}
 	for _, e := range ast.enums {
-		ed := newEnum(e, scope, types)
-		fd.EnumType = append(fd.EnumType, ed)
+		fd.EnumType = append(fd.EnumType, newEnum(e))
 	}
 	for _, e := range ast.extends {
 		ed := newExtend(e, scope, types)
@@ -82,6 +82,7 @@ func (b *messageBuilder) addEntry(e *parser.MessageEntry) {
 		m := newMessage(e.Message, b.proto3, b.scope, b.types)
 		b.messageDesc.NestedType = append(b.messageDesc.NestedType, m)
 	case e.Enum != nil:
+		b.messageDesc.EnumType = append(b.messageDesc.EnumType, newEnum(e.Enum))
 	case e.Option != nil:
 	case e.Oneof != nil:
 	case e.Extend != nil:
@@ -149,8 +150,8 @@ func (b *messageBuilder) createField(pf *parser.Field) *pb.FieldDescriptorProto 
 
 func newFieldDescriptorProtoType(t *parser.Type, scope []string, types types) (pb.FieldDescriptorProto_Type, *string) {
 	if t.Reference != nil {
-		name := types.fullName(*t.Reference, scope)
-		return pb.FieldDescriptorProto_TYPE_MESSAGE, &name
+		name, pbType := types.fullName(*t.Reference, scope)
+		return pbType, &name
 	}
 	if t.Scalar != parser.None {
 		return scalars[t.Scalar], nil
@@ -240,8 +241,62 @@ func newMethod(m *parser.Method, scope []string, types types) *pb.MethodDescript
 	return md
 }
 
-func newEnum(e *parser.Enum, scope []string, types types) *pb.EnumDescriptorProto {
-	panic(fmt.Sprintf("not implemented: newEnum %v %v %v", e, scope, types))
+func newEnum(enum *parser.Enum) *pb.EnumDescriptorProto {
+	var vals []*pb.EnumValueDescriptorProto
+	var reservedNames []string
+	var reservedRanges []*pb.EnumDescriptorProto_EnumReservedRange
+	for _, e := range enum.Values {
+		switch {
+		case e.Value != nil:
+			enumVal := newEnumValue(e.Value)
+			vals = append(vals, enumVal)
+		case e.Reserved != nil:
+			er := newEnumRanges(e.Reserved)
+			reservedRanges = append(reservedRanges, er...)
+			reservedNames = append(reservedNames, e.Reserved.FieldNames...)
+		case e.Option != nil:
+			panic(fmt.Sprintf("%s: enum option not implemented", e.Pos))
+		}
+	}
+	ed := &pb.EnumDescriptorProto{
+		Name:          &enum.Name,
+		Value:         vals,
+		Options:       nil,
+		ReservedRange: reservedRanges,
+		ReservedName:  reservedNames,
+	}
+	return ed
+}
+
+func newEnumValue(e *parser.EnumValue) *pb.EnumValueDescriptorProto {
+	val := int32(e.Value)
+	ed := &pb.EnumValueDescriptorProto{
+		Name:    &e.Key,
+		Number:  &val,
+		Options: nil,
+	}
+	return ed
+}
+
+func newEnumRanges(pr *parser.Reserved) []*pb.EnumDescriptorProto_EnumReservedRange {
+	reservedRanges := make([]*pb.EnumDescriptorProto_EnumReservedRange, 0, len(pr.Ranges))
+	for _, r := range pr.Ranges {
+		start := int32(r.Start)
+		er := &pb.EnumDescriptorProto_EnumReservedRange{
+			Start: &start,
+			End:   &start,
+		}
+		if r.End != nil {
+			end := int32(*r.End)
+			er.End = &end
+		}
+		if r.Max {
+			var end int32 = math.MaxInt32
+			er.End = &end
+		}
+		reservedRanges = append(reservedRanges, er)
+	}
+	return reservedRanges
 }
 
 func newOptions(o []*parser.Option) *pb.FileOptions {
