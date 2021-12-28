@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/alecthomas/participle/v2/lexer"
+	"github.com/stretchr/testify/require"
 )
 
 func TestUnquote(t *testing.T) {
@@ -18,11 +19,7 @@ func TestUnquote(t *testing.T) {
 	}
 	for _, test := range tests {
 		actual, err := unquote(lexer.Token{Value: test.input})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if actual.Value != test.expected {
-			t.Fatalf("%q (actual) != %q (expected)", actual.Value, test.expected)
-		}
+		require.NoError(t, err)
+		require.Equal(t, actual.Value, test.expected)
 	}
 }
