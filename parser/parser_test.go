@@ -5,24 +5,18 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParser(t *testing.T) {
 	files, err := filepath.Glob("../testdata/*.proto")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	for _, file := range files {
 		t.Run(file, func(t *testing.T) {
 			r, err := os.Open(file)
-			if err != nil {
-				t.Error(err)
-			}
+			require.NoError(t, err)
 			_, err = Parse(file, r)
-			if err != nil {
-				t.Error(err)
-			}
+			require.NoError(t, err)
 		})
 	}
 }
@@ -44,13 +38,10 @@ func TestImports(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := ParseString("test.proto", tt.source)
-			if err != nil {
-				t.Fatalf("got unexpected error: %v", err)
-			}
+			require.NoError(t, err)
+
 			result := imports(got)
-			if !cmp.Equal(result, tt.want) {
-				t.Errorf("ParseString()\n%s", cmp.Diff(result, tt.want))
-			}
+			require.Equal(t, tt.want, result)
 		})
 	}
 }
