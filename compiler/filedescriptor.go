@@ -195,7 +195,49 @@ func jsonStr(s string) *string {
 }
 
 func newService(s *parser.Service, scope []string, types types) *pb.ServiceDescriptorProto {
-	panic(fmt.Sprintf("not implemented: newSeervice %v %v %v", s, scope, types))
+	methods := []*pb.MethodDescriptorProto{}
+	for _, e := range s.Entry {
+		if e.Method != nil {
+			method := newMethod(e.Method, scope, types)
+			methods = append(methods, method)
+		}
+	}
+
+	sd := &pb.ServiceDescriptorProto{
+		Name:    &s.Name,
+		Method:  methods,
+		Options: nil,
+	}
+
+	return sd
+}
+
+func newMethod(m *parser.Method, scope []string, types types) *pb.MethodDescriptorProto {
+	var clientStreaming, serverStreaming *bool
+	if m.StreamingRequest {
+		clientStreaming = &m.StreamingRequest
+	}
+	if m.StreamingResponse {
+		serverStreaming = &m.StreamingResponse
+	}
+	inputEnum, inputType := newFieldDescriptorProtoType(m.Request, scope, types)
+	if inputEnum != pb.FieldDescriptorProto_TYPE_MESSAGE {
+		panic(fmt.Sprintf("%s: method %s should have Message as request type", m.Pos, m.Name))
+	}
+	outputEnum, outputType := newFieldDescriptorProtoType(m.Response, scope, types)
+	if outputEnum != pb.FieldDescriptorProto_TYPE_MESSAGE {
+		panic(fmt.Sprintf("%s: method %s should have Message as response type", m.Pos, m.Name))
+	}
+	md := &pb.MethodDescriptorProto{
+		Name:            &m.Name,
+		InputType:       inputType,
+		OutputType:      outputType,
+		Options:         nil,
+		ClientStreaming: clientStreaming,
+		ServerStreaming: serverStreaming,
+	}
+
+	return md
 }
 
 func newEnum(e *parser.Enum, scope []string, types types) *pb.EnumDescriptorProto {

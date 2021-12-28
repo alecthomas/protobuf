@@ -1,0 +1,25 @@
+syntax = "proto3";
+package pkg;
+
+import "01_proto3_pkg.proto";
+import "05_proto3_import.proto";
+
+message Request {
+  optional pkg.M3 m3 = 3;
+  pkg2.M5 m5 = 5;
+}
+
+service Greeter {
+  rpc Hello (Request) returns (pkg2.M5);
+  rpc HelloClientStream (stream .pkg.M3) returns (.pkg.HelloResponse);
+  rpc HelloServerStream (HelloRequest) returns (stream HelloResponse);
+  rpc HelloBiDiStream (stream HelloRequest) returns (stream HelloResponse);
+}
+
+message HelloRequest {
+  string first_name = 1;
+}
+
+message HelloResponse {
+  optional string greeting = 1;
+}
