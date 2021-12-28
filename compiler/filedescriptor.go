@@ -28,6 +28,8 @@ func newFileDescriptor(ast *ast, types types) *pb.FileDescriptorProto {
 		Options:          newOptions(ast.options),
 		Dependency:       ast.imports,
 		PublicDependency: ast.publicImports,
+
+		WeakDependency: nil,
 	}
 	scope := []string{}
 	if ast.pkg != "" {
@@ -60,7 +62,12 @@ func newMessage(m *parser.Message, proto3 bool, scope []string, types types) *pb
 		scope:  append(scope, m.Name),
 		types:  types,
 	}
-	b.messageDesc = &pb.DescriptorProto{Name: &m.Name}
+	b.messageDesc = &pb.DescriptorProto{
+		Name:           &m.Name,
+		ExtensionRange: nil,
+		ReservedRange:  nil,
+		ReservedName:   nil,
+	}
 	for _, e := range m.Entries {
 		b.addEntry(e)
 	}
