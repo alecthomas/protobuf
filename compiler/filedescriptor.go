@@ -127,7 +127,7 @@ func (b *messageBuilder) createField(pf *parser.Field) *pb.FieldDescriptorProto 
 	if pf.Direct == nil || pf.Direct.Type.Map != nil {
 		panic(fmt.Sprintf("%s: non-direct not implemented", pf.Pos))
 	}
-
+	typeEnum, typeName := newFieldDescriptorProtoType(pf.Direct.Type, b.scope, b.types)
 	tag := int32(pf.Direct.Tag)
 	df := &pb.FieldDescriptorProto{
 		Name:           &pf.Direct.Name,
@@ -135,20 +135,28 @@ func (b *messageBuilder) createField(pf *parser.Field) *pb.FieldDescriptorProto 
 		JsonName:       jsonStr(pf.Direct.Name),
 		Label:          fieldLabel(pf, b.proto3),
 		Proto3Optional: proto3Optional(pf, b.proto3),
+
+		Type:         &typeEnum,
+		TypeName:     typeName,
+		Extendee:     nil,
+		DefaultValue: nil,
+		OneofIndex:   nil,
+		Options:      nil,
 	}
 
-	if pf.Direct.Type.Reference != nil {
-		t := pb.FieldDescriptorProto_TYPE_MESSAGE
-		df.Type = &t
-
-		name := b.types.fullName(*pf.Direct.Type.Reference, b.scope)
-		df.TypeName = &name
-		return df
-	}
-
-	fieldType := scalars[pf.Direct.Type.Scalar]
-	df.Type = &fieldType
 	return df
+}
+
+func newFieldDescriptorProtoType(t *parser.Type, scope []string, types types) (pb.FieldDescriptorProto_Type, *string) {
+	if t.Reference != nil {
+		name := types.fullName(*t.Reference, scope)
+		return pb.FieldDescriptorProto_TYPE_MESSAGE, &name
+	}
+	if t.Scalar != parser.None {
+		return scalars[t.Scalar], nil
+	}
+	// maps
+	panic("unimplemented type, probably map")
 }
 
 func fieldLabel(pf *parser.Field, proto3 bool) *pb.FieldDescriptorProto_Label {
