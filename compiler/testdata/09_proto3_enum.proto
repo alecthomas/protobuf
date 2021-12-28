@@ -1,0 +1,40 @@
+syntax = "proto3";
+package pkg;
+
+enum Color {
+  UNKNOWN = 0;
+  reserved 2, 15, 9 to 11, 40 to max;
+  reserved "GREEN", "BLACK";
+  reserved "RED";
+  BLUE = 12;
+  reserved 3;
+}
+
+message Nest {
+  message Egg {
+    enum EggKind {
+      EGG_KIND_UNKNOWN = 0;
+      EGG_KIND_CHICK = 1;
+      EGG_KIND_DUCKLING = 2;
+    }
+    optional EggKind kind1 = 1;
+    optional Egg.EggKind kind2 = 2;
+    optional Nest.Egg.EggKind kind3 = 3;
+    optional pkg.Nest.Egg.EggKind kind4 = 4;
+    optional .pkg.Nest.Egg.EggKind kind5 = 5;
+  }
+  optional Egg.EggKind kind2 = 2;
+  optional Nest.Egg.EggKind kind3 = 3;
+  optional pkg.Nest.Egg.EggKind kind4 = 4;
+  optional .pkg.Nest.Egg.EggKind kind5 = 5;
+}
+
+
+message Farm {
+  optional Color color1 = 1;
+  optional pkg.Color color2 = 2;
+  optional .pkg.Color color3 = 3;
+  optional Nest.Egg.EggKind egg_kind = 4;
+  optional pkg.Nest.Egg.EggKind egg_kind2 = 5;
+  optional .pkg.Nest.Egg.EggKind egg_kind3 = 6;
+}
