@@ -9,6 +9,8 @@ import (
 	pb "google.golang.org/protobuf/types/descriptorpb"
 )
 
+const maxReserved = int32(1 << 29)
+
 type messageBuilder struct {
 	proto3      bool
 	messageDesc *pb.DescriptorProto
@@ -87,10 +89,47 @@ func (b *messageBuilder) addEntry(e *parser.MessageEntry) {
 	case e.Oneof != nil:
 	case e.Extend != nil:
 	case e.Reserved != nil:
+		mr := newMessageRanges(e.Reserved)
+		b.messageDesc.ReservedRange = append(b.messageDesc.ReservedRange, mr...)
+		b.messageDesc.ReservedName = append(b.messageDesc.ReservedName, e.Reserved.FieldNames...)
 	case e.Extensions != nil:
+		er := newExtensionRanges(e.Extensions)
+		b.messageDesc.ExtensionRange = append(b.messageDesc.ExtensionRange, er...)
 	default:
 		panic(fmt.Sprintf("%s: cannot interpret MessageEntry", e.Pos))
 	}
+}
+
+func newMessageRanges(pr *parser.Reserved) []*pb.DescriptorProto_ReservedRange {
+	reservedRanges := make([]*pb.DescriptorProto_ReservedRange, 0, len(pr.Ranges))
+	for _, r := range pr.Ranges {
+		start, end := reservedRange(r)
+		rr := &pb.DescriptorProto_ReservedRange{Start: &start, End: &end}
+		reservedRanges = append(reservedRanges, rr)
+	}
+	return reservedRanges
+}
+
+func newExtensionRanges(er *parser.Extensions) []*pb.DescriptorProto_ExtensionRange {
+	extensionRanges := make([]*pb.DescriptorProto_ExtensionRange, 0, len(er.Extensions))
+	for _, r := range er.Extensions {
+		start, end := reservedRange(r)
+		rr := &pb.DescriptorProto_ExtensionRange{Start: &start, End: &end}
+		extensionRanges = append(extensionRanges, rr)
+	}
+	return extensionRanges
+}
+
+func reservedRange(r parser.Range) (start int32, end int32) {
+	start = int32(r.Start)
+	end = int32(r.Start) + 1
+	if r.End != nil {
+		end = int32(*r.End) + 1
+	}
+	if r.Max {
+		end = maxReserved
+	}
+	return start, end
 }
 
 func (b *messageBuilder) buildField(pField *parser.Field) {
@@ -282,18 +321,14 @@ func newEnumRanges(pr *parser.Reserved) []*pb.EnumDescriptorProto_EnumReservedRa
 	reservedRanges := make([]*pb.EnumDescriptorProto_EnumReservedRange, 0, len(pr.Ranges))
 	for _, r := range pr.Ranges {
 		start := int32(r.Start)
-		er := &pb.EnumDescriptorProto_EnumReservedRange{
-			Start: &start,
-			End:   &start,
-		}
+		end := int32(r.Start)
 		if r.End != nil {
-			end := int32(*r.End)
-			er.End = &end
+			end = int32(*r.End)
 		}
 		if r.Max {
-			var end int32 = math.MaxInt32
-			er.End = &end
+			end = math.MaxInt32
 		}
+		er := &pb.EnumDescriptorProto_EnumReservedRange{Start: &start, End: &end}
 		reservedRanges = append(reservedRanges, er)
 	}
 	return reservedRanges

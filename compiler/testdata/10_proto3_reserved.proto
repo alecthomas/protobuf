@@ -1,0 +1,10 @@
+syntax = "proto3";
+package pkg;
+
+message M {
+  reserved 2, 15, 9 to 11;
+  reserved "m", "mm";
+  optional string s = 1;
+  reserved "one", "two";
+  reserved 25 to max;
+}
