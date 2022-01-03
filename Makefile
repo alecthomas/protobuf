@@ -42,14 +42,16 @@ clean::
 
 # --- Protos -----------------------------------------------------------
 COMPILER_PROTO_FILES = $(wildcard compiler/testdata/*.proto)
-COMPILER_PB_FILES = $(patsubst compiler/testdata/%.proto,compiler/testdata/pb/%.pb,$(COMPILER_PROTO_FILES))
+COMPILER_PB_FILES = $(patsubst compiler/testdata/%.proto,compiler/testdata/pb/%.pb,$(COMPILER_PROTO_FILES)) compiler/testdata/pb/06_proto3_import_transitive_no_include.pb
 
-pb: $(COMPILER_PB_FILES)  ## Generate binary FileDescriptorSet as pb files from compiler/testdata/*.proto
+pb: $(COMPILER_PB_FILES) ## Generate binary FileDescriptorSet as pb files from compiler/testdata/*.proto
+
+# special case: don't include imports
+compiler/testdata/pb/06_proto3_import_transitive_no_include.pb: compiler/testdata/06_proto3_import_transitive.proto
+	protoc -I compiler/testdata -o compiler/testdata/pb/06_proto3_import_transitive_no_include.pb compiler/testdata/06_proto3_import_transitive.proto
 
 compiler/testdata/pb/%.pb: compiler/testdata/%.proto
 	protoc --include_imports -I compiler/testdata -o $@ $<
-	# special case: don't include imports
-	protoc -I compiler/testdata -o compiler/testdata/pb/06_proto3_import_transitive_no_include.pb compiler/testdata/06_proto3_import_transitive.proto
 
 clean::
 	rm -rf compiler/testdata/pb/*.pb
