@@ -16,6 +16,8 @@ type messageBuilder struct {
 	messageDesc *pb.DescriptorProto
 	types       types
 	scope       []string
+
+	proto3optionalFields []*pb.FieldDescriptorProto
 }
 
 func newFileDescriptor(ast *ast, types types) *pb.FileDescriptorProto {
@@ -70,6 +72,7 @@ func newMessage(m *parser.Message, proto3 bool, scope []string, types types) *pb
 	for _, e := range m.Entries {
 		b.addEntry(e)
 	}
+	b.postProcessProto3Optional()
 	return b.messageDesc
 }
 
@@ -84,6 +87,7 @@ func (b *messageBuilder) addEntry(e *parser.MessageEntry) {
 		b.messageDesc.EnumType = append(b.messageDesc.EnumType, newEnum(e.Enum))
 	case e.Option != nil:
 	case e.Oneof != nil:
+		b.buildOneof(e.Oneof)
 	case e.Extend != nil:
 	case e.Reserved != nil:
 		mr := newMessageRanges(e.Reserved)
@@ -95,6 +99,26 @@ func (b *messageBuilder) addEntry(e *parser.MessageEntry) {
 	default:
 		panic(fmt.Sprintf("%s: cannot interpret MessageEntry", e.Pos))
 	}
+}
+
+func (b *messageBuilder) buildOneof(po *parser.OneOf) *pb.OneofDescriptorProto {
+	o := &pb.OneofDescriptorProto{
+		Name:    &po.Name,
+		Options: nil,
+	}
+	oneofIndex := int32(len(b.messageDesc.OneofDecl))
+	b.messageDesc.OneofDecl = append(b.messageDesc.OneofDecl, o)
+	for _, e := range po.Entries {
+		switch {
+		case e.Field != nil:
+			fieldDesc := b.createField(e.Field, &oneofIndex)
+			b.messageDesc.Field = append(b.messageDesc.Field, fieldDesc)
+		case e.Option != nil:
+		default:
+			panic(fmt.Sprintf("%s: cannot interpret OneofEntry", e.Pos))
+		}
+	}
+	return o
 }
 
 func newMessageRanges(pr *parser.Reserved) []*pb.DescriptorProto_ReservedRange {
@@ -130,13 +154,19 @@ func reservedRange(r parser.Range) (start int32, end int32) {
 }
 
 func (b *messageBuilder) buildField(pField *parser.Field) {
-	fieldDesc := b.createField(pField)
+	fieldDesc := b.createField(pField, nil)
 	b.messageDesc.Field = append(b.messageDesc.Field, fieldDesc)
 
 	if b.proto3 && fieldDesc.Proto3Optional != nil && *fieldDesc.Proto3Optional {
-		idx := int32(len(b.messageDesc.Field)) - 1
-		fieldDesc.OneofIndex = &idx
-		name := "_" + *fieldDesc.Name
+		b.proto3optionalFields = append(b.proto3optionalFields, fieldDesc)
+	}
+}
+
+func (b *messageBuilder) postProcessProto3Optional() {
+	for _, fd := range b.proto3optionalFields {
+		idx := int32(len(b.messageDesc.OneofDecl))
+		fd.OneofIndex = &idx
+		name := "_" + *fd.Name
 		dcl := &pb.OneofDescriptorProto{Name: &name}
 		b.messageDesc.OneofDecl = append(b.messageDesc.OneofDecl, dcl)
 	}
@@ -160,7 +190,7 @@ var scalars = map[parser.Scalar]pb.FieldDescriptorProto_Type{
 	parser.Bytes:    pb.FieldDescriptorProto_TYPE_BYTES,
 }
 
-func (b *messageBuilder) createField(pf *parser.Field) *pb.FieldDescriptorProto {
+func (b *messageBuilder) createField(pf *parser.Field, oneofIndex *int32) *pb.FieldDescriptorProto {
 	if pf.Direct == nil || pf.Direct.Type.Map != nil {
 		panic(fmt.Sprintf("%s: non-direct not implemented", pf.Pos))
 	}
@@ -170,14 +200,14 @@ func (b *messageBuilder) createField(pf *parser.Field) *pb.FieldDescriptorProto 
 		Name:           &pf.Direct.Name,
 		Number:         &tag,
 		JsonName:       jsonStr(pf.Direct.Name),
-		Label:          fieldLabel(pf, b.proto3),
+		Label:          fieldLabel(pf, b.proto3, oneofIndex != nil),
 		Proto3Optional: proto3Optional(pf, b.proto3),
 
 		Type:         &typeEnum,
 		TypeName:     typeName,
 		Extendee:     nil,
 		DefaultValue: nil,
-		OneofIndex:   nil,
+		OneofIndex:   oneofIndex,
 		Options:      nil,
 	}
 
@@ -196,7 +226,7 @@ func newFieldDescriptorProtoType(t *parser.Type, scope []string, types types) (p
 	panic("unimplemented type, probably map")
 }
 
-func fieldLabel(pf *parser.Field, proto3 bool) *pb.FieldDescriptorProto_Label {
+func fieldLabel(pf *parser.Field, proto3, oneof bool) *pb.FieldDescriptorProto_Label {
 	var label pb.FieldDescriptorProto_Label
 	switch {
 	case pf.Required:
@@ -204,6 +234,9 @@ func fieldLabel(pf *parser.Field, proto3 bool) *pb.FieldDescriptorProto_Label {
 	case pf.Repeated:
 		label = pb.FieldDescriptorProto_LABEL_REPEATED
 	case pf.Optional:
+		label = pb.FieldDescriptorProto_LABEL_OPTIONAL
+	case oneof:
+		// oneof fields are unlabelled in proto2 and proto3
 		label = pb.FieldDescriptorProto_LABEL_OPTIONAL
 	case proto3:
 		// unlabelled proto3 field

@@ -1,0 +1,22 @@
+syntax = "proto2";
+package pkg;
+
+message M1 {
+  optional int32 i = 1;
+}
+
+message M2 {
+  optional string s1 = 1;
+  oneof oneof1 {
+    M1 m1 = 2;
+    int32 i = 3;
+    string s2 = 4;
+  }
+  optional string s3 = 5;
+  oneof oneof2 {
+    M1 m21 = 6;
+    int32 i2 = 7;
+    string s22 = 8;
+  }
+  optional string s4 = 9;
+}
