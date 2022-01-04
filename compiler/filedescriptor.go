@@ -65,10 +65,7 @@ func newMessage(m *parser.Message, proto3 bool, scope []string, types types) *pb
 		types:  types,
 	}
 	b.messageDesc = &pb.DescriptorProto{
-		Name:           &m.Name,
-		ExtensionRange: nil,
-		ReservedRange:  nil,
-		ReservedName:   nil,
+		Name: &m.Name,
 	}
 	for _, e := range m.Entries {
 		b.addEntry(e)
