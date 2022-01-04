@@ -89,11 +89,25 @@ func analyseMessage(m *parser.Message, scope []string, t types) {
 	name := m.Name
 	t.addName(name, pb.FieldDescriptorProto_TYPE_MESSAGE, scope)
 	scope = append(scope, name)
-	for _, me := range m.Entries {
-		if me.Message != nil {
+	analyseMessageEntries(m.Entries, scope, t)
+}
+
+func analyseGroup(g *parser.Group, scope []string, t types) {
+	name := g.Name
+	t.addName(name, pb.FieldDescriptorProto_TYPE_GROUP, scope)
+	scope = append(scope, name)
+	analyseMessageEntries(g.Entries, scope, t)
+}
+
+func analyseMessageEntries(messageEntries []*parser.MessageEntry, scope []string, t types) {
+	for _, me := range messageEntries {
+		switch {
+		case me.Message != nil:
 			analyseMessage(me.Message, scope, t)
-		} else if me.Enum != nil {
+		case me.Enum != nil:
 			t.addName(me.Enum.Name, pb.FieldDescriptorProto_TYPE_ENUM, scope)
+		case me.Field != nil && me.Field.Group != nil:
+			analyseGroup(me.Field.Group, scope, t)
 		}
 	}
 }

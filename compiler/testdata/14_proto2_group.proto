@@ -1,0 +1,78 @@
+syntax = "proto2";
+package pkg;
+
+message M {
+  optional group Group1 = 1 {
+    optional string s2 = 2;
+    optional string s3 = 3;
+  }
+  repeated group Group2 = 4 {
+    optional string s5 = 5;
+    optional string s6 = 6;
+    repeated group Group3 = 7 {
+      optional string s8 = 8;
+    }
+  }
+}
+
+message M2 {
+  optional M.Group1 g1 = 1;
+  optional pkg.M.Group1 g2 = 2;
+  optional .pkg.M.Group1 g3 = 3;
+}
+
+message M3 {
+  optional M.Group2.Group3 g1 = 1;
+  optional pkg.M.Group2.Group3 g2 = 2;
+  optional .pkg.M.Group2.Group3 g3 = 3;
+}
+
+message Nest {
+  message Egg {
+    optional group Group1 = 1 {
+      optional string s2 = 2;
+      optional string s3 = 3;
+    }
+  }
+}
+
+message Nest1 {
+  optional Nest.Egg.Group1 g1 = 1;
+  optional pkg.Nest.Egg.Group1 g2 = 2;
+  optional .pkg.Nest.Egg.Group1 g3 = 3;
+}
+
+message Bento {
+  optional group Box = 1 {
+    message Condiment {
+      optional bool wasabi = 10;
+    }
+    optional string s2 = 2;
+    optional string s3 = 3;
+  }
+}
+
+message Bento1 {
+  optional Bento.Box.Condiment takeaway = 1;
+  optional pkg.Bento.Box.Condiment byo = 2;
+  optional .pkg.Bento.Box.Condiment byo2 = 3;
+}
+
+message GroupedEnum {
+  optional group G1 = 1 {
+    enum Color {
+      UNKNOWN = 0;
+      RED = 1;
+      GREEN = 2;
+      BLUE = 3;
+    }
+    optional Color color = 4;
+  }
+  optional G1.Color color = 5;
+}
+
+message GroupedEnum1 {
+  optional GroupedEnum.G1.Color c1 = 1;
+  optional pkg.GroupedEnum.G1.Color c2 = 2;
+  optional .pkg.GroupedEnum.G1.Color c3 = 3;
+}
