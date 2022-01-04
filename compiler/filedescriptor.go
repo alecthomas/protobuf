@@ -20,6 +20,15 @@ type messageBuilder struct {
 	proto3optionalFields []*pb.FieldDescriptorProto
 }
 
+type fieldBuilder struct {
+	proto3 bool
+	types  types
+	scope  []string
+
+	oneofIndex *int32
+	extendee   *string
+}
+
 func newFileDescriptor(ast *ast, types types) *pb.FileDescriptorProto {
 	var proto3 bool
 	var syntax *string
@@ -53,8 +62,8 @@ func newFileDescriptor(ast *ast, types types) *pb.FileDescriptorProto {
 		fd.EnumType = append(fd.EnumType, newEnum(e))
 	}
 	for _, e := range ast.extends {
-		ed := newExtend(e, scope, types)
-		fd.Extension = append(fd.Extension, ed)
+		ed := newExtend(e, proto3, scope, types)
+		fd.Extension = append(fd.Extension, ed...)
 	}
 
 	return fd
@@ -77,25 +86,28 @@ func newMessage(m *parser.Message, proto3 bool, scope []string, types types) *pb
 }
 
 func (b *messageBuilder) addEntry(e *parser.MessageEntry) {
+	md := b.messageDesc
 	switch {
 	case e.Field != nil:
 		b.buildField(e.Field)
 	case e.Message != nil:
 		m := newMessage(e.Message, b.proto3, b.scope, b.types)
-		b.messageDesc.NestedType = append(b.messageDesc.NestedType, m)
+		md.NestedType = append(md.NestedType, m)
 	case e.Enum != nil:
-		b.messageDesc.EnumType = append(b.messageDesc.EnumType, newEnum(e.Enum))
+		md.EnumType = append(md.EnumType, newEnum(e.Enum))
 	case e.Option != nil:
 	case e.Oneof != nil:
 		b.buildOneof(e.Oneof)
 	case e.Extend != nil:
+		extend := newExtend(e.Extend, b.proto3, b.scope, b.types)
+		md.Extension = append(md.Extension, extend...)
 	case e.Reserved != nil:
 		mr := newMessageRanges(e.Reserved)
-		b.messageDesc.ReservedRange = append(b.messageDesc.ReservedRange, mr...)
-		b.messageDesc.ReservedName = append(b.messageDesc.ReservedName, e.Reserved.FieldNames...)
+		md.ReservedRange = append(md.ReservedRange, mr...)
+		md.ReservedName = append(md.ReservedName, e.Reserved.FieldNames...)
 	case e.Extensions != nil:
 		er := newExtensionRanges(e.Extensions)
-		b.messageDesc.ExtensionRange = append(b.messageDesc.ExtensionRange, er...)
+		md.ExtensionRange = append(md.ExtensionRange, er...)
 	default:
 		panic(fmt.Sprintf("%s: cannot interpret MessageEntry", e.Pos))
 	}
@@ -107,11 +119,17 @@ func (b *messageBuilder) buildOneof(po *parser.OneOf) *pb.OneofDescriptorProto {
 		Options: nil,
 	}
 	oneofIndex := int32(len(b.messageDesc.OneofDecl))
+	fdBuilder := fieldBuilder{
+		proto3:     b.proto3,
+		scope:      b.scope,
+		types:      b.types,
+		oneofIndex: &oneofIndex,
+	}
 	b.messageDesc.OneofDecl = append(b.messageDesc.OneofDecl, o)
 	for _, e := range po.Entries {
 		switch {
 		case e.Field != nil:
-			fieldDesc := b.createField(e.Field, &oneofIndex)
+			fieldDesc := fdBuilder.createField(e.Field)
 			b.messageDesc.Field = append(b.messageDesc.Field, fieldDesc)
 		case e.Option != nil:
 		default:
@@ -154,7 +172,8 @@ func reservedRange(r parser.Range) (start int32, end int32) {
 }
 
 func (b *messageBuilder) buildField(pField *parser.Field) {
-	fieldDesc := b.createField(pField, nil)
+	fdBuilder := fieldBuilder{proto3: b.proto3, scope: b.scope, types: b.types}
+	fieldDesc := fdBuilder.createField(pField)
 	b.messageDesc.Field = append(b.messageDesc.Field, fieldDesc)
 
 	if b.proto3 && fieldDesc.Proto3Optional != nil && *fieldDesc.Proto3Optional {
@@ -190,7 +209,7 @@ var scalars = map[parser.Scalar]pb.FieldDescriptorProto_Type{
 	parser.Bytes:    pb.FieldDescriptorProto_TYPE_BYTES,
 }
 
-func (b *messageBuilder) createField(pf *parser.Field, oneofIndex *int32) *pb.FieldDescriptorProto {
+func (b *fieldBuilder) createField(pf *parser.Field) *pb.FieldDescriptorProto {
 	if pf.Direct == nil || pf.Direct.Type.Map != nil {
 		panic(fmt.Sprintf("%s: non-direct not implemented", pf.Pos))
 	}
@@ -200,14 +219,14 @@ func (b *messageBuilder) createField(pf *parser.Field, oneofIndex *int32) *pb.Fi
 		Name:           &pf.Direct.Name,
 		Number:         &tag,
 		JsonName:       jsonStr(pf.Direct.Name),
-		Label:          fieldLabel(pf, b.proto3, oneofIndex != nil),
+		Label:          fieldLabel(pf, b.proto3, b.oneofIndex != nil),
 		Proto3Optional: proto3Optional(pf, b.proto3),
 
-		Type:         &typeEnum,
+		Type:         &typeEnum, // Message, Enum, string, int32,...
 		TypeName:     typeName,
-		Extendee:     nil,
+		Extendee:     b.extendee,
 		DefaultValue: nil,
-		OneofIndex:   oneofIndex,
+		OneofIndex:   b.oneofIndex,
 		Options:      nil,
 	}
 
@@ -372,6 +391,12 @@ func newOptions(o []*parser.Option) *pb.FileOptions {
 	return opts
 }
 
-func newExtend(e *parser.Extend, scope []string, types types) *pb.FieldDescriptorProto {
-	panic(fmt.Sprintf("not implemented: newExtend %v %v %v", e, scope, types))
+func newExtend(e *parser.Extend, proto3 bool, scope []string, types types) []*pb.FieldDescriptorProto {
+	extendee, _ := types.fullName(e.Reference, scope)
+	fdBuilder := fieldBuilder{proto3: proto3, scope: scope, types: types, extendee: &extendee}
+	fds := make([]*pb.FieldDescriptorProto, len(e.Fields))
+	for i, pf := range e.Fields {
+		fds[i] = fdBuilder.createField(pf)
+	}
+	return fds
 }
