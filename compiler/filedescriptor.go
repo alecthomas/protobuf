@@ -51,7 +51,7 @@ func newFileDescriptor(ast *ast, types types) *pb.FileDescriptorProto {
 		scope = append(scope, ast.pkg)
 	}
 	for _, m := range ast.messages {
-		md := newMessage(m, proto3, scope, types)
+		md := newMessage(m.Name, m.Entries, proto3, scope, types)
 		fd.MessageType = append(fd.MessageType, md)
 	}
 	for _, s := range ast.services {
@@ -69,16 +69,16 @@ func newFileDescriptor(ast *ast, types types) *pb.FileDescriptorProto {
 	return fd
 }
 
-func newMessage(m *parser.Message, proto3 bool, scope []string, types types) *pb.DescriptorProto {
+func newMessage(name string, entries []*parser.MessageEntry, proto3 bool, scope []string, types types) *pb.DescriptorProto {
 	b := &messageBuilder{
 		proto3: proto3,
-		scope:  append(scope, m.Name),
+		scope:  append(scope, name),
 		types:  types,
 	}
 	b.messageDesc = &pb.DescriptorProto{
-		Name: &m.Name,
+		Name: &name,
 	}
-	for _, e := range m.Entries {
+	for _, e := range entries {
 		b.addEntry(e)
 	}
 	b.postProcessProto3Optional()
@@ -91,7 +91,7 @@ func (b *messageBuilder) addEntry(e *parser.MessageEntry) {
 	case e.Field != nil:
 		b.buildField(e.Field)
 	case e.Message != nil:
-		m := newMessage(e.Message, b.proto3, b.scope, b.types)
+		m := newMessage(e.Message.Name, e.Message.Entries, b.proto3, b.scope, b.types)
 		md.NestedType = append(md.NestedType, m)
 	case e.Enum != nil:
 		md.EnumType = append(md.EnumType, newEnum(e.Enum))
@@ -174,8 +174,12 @@ func reservedRange(r parser.Range) (start int32, end int32) {
 func (b *messageBuilder) buildField(pField *parser.Field) {
 	fdBuilder := fieldBuilder{proto3: b.proto3, scope: b.scope, types: b.types}
 	fieldDesc := fdBuilder.createField(pField)
-	b.messageDesc.Field = append(b.messageDesc.Field, fieldDesc)
-
+	md := b.messageDesc
+	md.Field = append(md.Field, fieldDesc)
+	if group := pField.Group; group != nil {
+		m := newMessage(group.Name, group.Entries, b.proto3, b.scope, b.types)
+		md.NestedType = append(md.NestedType, m)
+	}
 	if b.proto3 && fieldDesc.Proto3Optional != nil && *fieldDesc.Proto3Optional {
 		b.proto3optionalFields = append(b.proto3optionalFields, fieldDesc)
 	}
@@ -209,20 +213,20 @@ var scalars = map[parser.Scalar]pb.FieldDescriptorProto_Type{
 	parser.Bytes:    pb.FieldDescriptorProto_TYPE_BYTES,
 }
 
-func (b *fieldBuilder) createField(pf *parser.Field) *pb.FieldDescriptorProto {
-	if pf.Direct == nil || pf.Direct.Type.Map != nil {
-		panic(fmt.Sprintf("%s: non-direct not implemented", pf.Pos))
+func (b *fieldBuilder) createField(pField *parser.Field) *pb.FieldDescriptorProto {
+	if pField.Direct != nil && pField.Direct.Type.Map != nil {
+		panic(fmt.Sprintf("%s: map not implemented", pField.Pos))
 	}
-	typeEnum, typeName := newFieldDescriptorProtoType(pf.Direct.Type, b.scope, b.types)
-	tag := int32(pf.Direct.Tag)
+	fType, typeName := fieldType(pField, b.scope, b.types)
+	name := fieldName(pField)
 	df := &pb.FieldDescriptorProto{
-		Name:           &pf.Direct.Name,
-		Number:         &tag,
-		JsonName:       jsonStr(pf.Direct.Name),
-		Label:          fieldLabel(pf, b.proto3, b.oneofIndex != nil),
-		Proto3Optional: proto3Optional(pf, b.proto3),
+		Name:           &name,
+		Number:         fieldTag(pField),
+		JsonName:       jsonStr(name),
+		Label:          fieldLabel(pField, b.proto3, b.oneofIndex != nil),
+		Proto3Optional: proto3Optional(pField, b.proto3),
 
-		Type:         &typeEnum, // Message, Enum, string, int32,...
+		Type:         &fType, // Message, Enum, Group, string, int32,...
 		TypeName:     typeName,
 		Extendee:     b.extendee,
 		DefaultValue: nil,
@@ -233,13 +237,53 @@ func (b *fieldBuilder) createField(pf *parser.Field) *pb.FieldDescriptorProto {
 	return df
 }
 
+func fieldName(f *parser.Field) string {
+	if f.Direct != nil {
+		return f.Direct.Name
+	}
+	if f.Group != nil {
+		return strings.ToLower(f.Group.Name)
+	}
+	panic(fmt.Sprintf("%s: fieldName: no direct or group", f.Pos))
+}
+
+func fieldTag(f *parser.Field) *int32 {
+	var tag int32
+	switch {
+	case f.Direct != nil:
+		tag = int32(f.Direct.Tag)
+	case f.Group != nil:
+		tag = int32(f.Group.Tag)
+	default:
+		panic(fmt.Sprintf("%s: fieldTag: no direct or group", f.Pos))
+	}
+	return &tag
+}
+
+func fieldType(f *parser.Field, scope []string, types types) (pb.FieldDescriptorProto_Type, *string) {
+	switch {
+	case f.Direct != nil:
+		fType, name := newFieldDescriptorProtoType(f.Direct.Type, scope, types)
+		if fType == pb.FieldDescriptorProto_TYPE_GROUP {
+			// references to groups are stored as Messages 🤷‍♀️
+			fType = pb.FieldDescriptorProto_TYPE_MESSAGE
+		}
+		return fType, name
+	case f.Group != nil:
+		name, pbType := types.fullName(f.Group.Name, scope)
+		return pbType, &name
+	default:
+		panic(fmt.Sprintf("%s: fieldType: no direct or group", f.Pos))
+	}
+}
+
 func newFieldDescriptorProtoType(t *parser.Type, scope []string, types types) (pb.FieldDescriptorProto_Type, *string) {
+	if t.Scalar != parser.None {
+		return scalars[t.Scalar], nil
+	}
 	if t.Reference != nil {
 		name, pbType := types.fullName(*t.Reference, scope)
 		return pbType, &name
-	}
-	if t.Scalar != parser.None {
-		return scalars[t.Scalar], nil
 	}
 	// maps
 	panic("unimplemented type, probably map")
@@ -309,18 +353,18 @@ func newMethod(m *parser.Method, scope []string, types types) *pb.MethodDescript
 	if m.StreamingResponse {
 		serverStreaming = &m.StreamingResponse
 	}
-	inputEnum, inputType := newFieldDescriptorProtoType(m.Request, scope, types)
-	if inputEnum != pb.FieldDescriptorProto_TYPE_MESSAGE {
+	inputType, inputTypeName := newFieldDescriptorProtoType(m.Request, scope, types)
+	if inputType != pb.FieldDescriptorProto_TYPE_MESSAGE {
 		panic(fmt.Sprintf("%s: method %s should have Message as request type", m.Pos, m.Name))
 	}
-	outputEnum, outputType := newFieldDescriptorProtoType(m.Response, scope, types)
-	if outputEnum != pb.FieldDescriptorProto_TYPE_MESSAGE {
+	outputType, outputTypeName := newFieldDescriptorProtoType(m.Response, scope, types)
+	if outputType != pb.FieldDescriptorProto_TYPE_MESSAGE {
 		panic(fmt.Sprintf("%s: method %s should have Message as response type", m.Pos, m.Name))
 	}
 	md := &pb.MethodDescriptorProto{
 		Name:            &m.Name,
-		InputType:       inputType,
-		OutputType:      outputType,
+		InputType:       inputTypeName,
+		OutputType:      outputTypeName,
 		Options:         nil,
 		ClientStreaming: clientStreaming,
 		ServerStreaming: serverStreaming,
