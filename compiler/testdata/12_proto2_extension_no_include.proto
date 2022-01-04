@@ -1,0 +1,41 @@
+syntax = "proto2";
+package pkg;
+
+import "google/protobuf/descriptor.proto";
+
+enum Color {
+  UNKNOWN = 0;
+  RED = 1;
+  GREEN = 2;
+  BLUE = 3;
+}
+
+message M {
+  optional string s = 1;
+  extensions 10 to 20;
+  optional string s2 = 30;
+}
+
+extend M {
+  optional string s3 = 10;
+  repeated string s5 = 15;
+  optional Color color = 11;
+  // optional group MyGroup = 16 {
+  //   optional string s2 = 17;
+  //   optional string s3 = 18;
+  // }
+}
+
+extend google.protobuf.MethodOptions {
+  optional string opt1 = 72295728;
+  optional string opt2 = 72295729;
+  repeated string opt3 = 72295730;
+  optional Color opt4 = 72295731;
+}
+
+message ColorMessage {
+  optional Color color = 1;
+  extend google.protobuf.MethodOptions {
+    optional ColorMessage c = 72295732;
+  }
+}
