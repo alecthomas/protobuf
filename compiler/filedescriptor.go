@@ -11,6 +11,13 @@ import (
 
 const maxReserved = int32(1 << 29)
 
+type fileDescriptorBuilder struct {
+	proto3   bool
+	fileDesc *pb.FileDescriptorProto
+	types    types
+	scope    []string
+}
+
 type messageBuilder struct {
 	proto3      bool
 	messageDesc *pb.DescriptorProto
@@ -45,28 +52,39 @@ func newFileDescriptor(ast *ast, types types) *pb.FileDescriptorProto {
 
 		WeakDependency: nil,
 	}
-	scope := []string{}
-	if ast.pkg != "" {
-		fd.Package = &ast.pkg
-		scope = append(scope, ast.pkg)
-	}
-	for _, m := range ast.messages {
-		md := newMessage(m.Name, m.Entries, proto3, scope, types)
-		fd.MessageType = append(fd.MessageType, md)
-	}
-	for _, s := range ast.services {
-		sd := newService(s, scope, types)
-		fd.Service = append(fd.Service, sd)
-	}
-	for _, e := range ast.enums {
-		fd.EnumType = append(fd.EnumType, newEnum(e))
-	}
-	for _, e := range ast.extends {
-		ed := newExtend(e, proto3, scope, types)
-		fd.Extension = append(fd.Extension, ed...)
+	b := fileDescriptorBuilder{
+		proto3:   proto3,
+		scope:    []string{},
+		types:    types,
+		fileDesc: fd,
 	}
 
-	return fd
+	if ast.pkg != "" {
+		b.fileDesc.Package = &ast.pkg
+		b.scope = append(b.scope, ast.pkg)
+	}
+	for _, e := range ast.proto.Entries {
+		b.addEntry(e)
+	}
+	return b.fileDesc
+}
+
+func (b *fileDescriptorBuilder) addEntry(e *parser.Entry) {
+	fd := b.fileDesc
+	switch {
+	case e.Message != nil:
+		md := newMessage(e.Message.Name, e.Message.Entries, b.proto3, b.scope, b.types)
+		fd.MessageType = append(fd.MessageType, md)
+	case e.Service != nil:
+		sd := newService(e.Service, b.scope, b.types)
+		fd.Service = append(fd.Service, sd)
+	case e.Enum != nil:
+		fd.EnumType = append(fd.EnumType, newEnum(e.Enum))
+	case e.Extend != nil:
+		ed, groups := newExtend(e.Extend, b.proto3, b.scope, b.types)
+		fd.Extension = append(fd.Extension, ed...)
+		fd.MessageType = append(fd.MessageType, groups...)
+	}
 }
 
 func newMessage(name string, entries []*parser.MessageEntry, proto3 bool, scope []string, types types) *pb.DescriptorProto {
@@ -99,8 +117,9 @@ func (b *messageBuilder) addEntry(e *parser.MessageEntry) {
 	case e.Oneof != nil:
 		b.buildOneof(e.Oneof)
 	case e.Extend != nil:
-		extend := newExtend(e.Extend, b.proto3, b.scope, b.types)
+		extend, groups := newExtend(e.Extend, b.proto3, b.scope, b.types)
 		md.Extension = append(md.Extension, extend...)
+		md.NestedType = append(md.NestedType, groups...)
 	case e.Reserved != nil:
 		mr := newMessageRanges(e.Reserved)
 		md.ReservedRange = append(md.ReservedRange, mr...)
@@ -435,12 +454,17 @@ func newOptions(o []*parser.Option) *pb.FileOptions {
 	return opts
 }
 
-func newExtend(e *parser.Extend, proto3 bool, scope []string, types types) []*pb.FieldDescriptorProto {
+func newExtend(e *parser.Extend, proto3 bool, scope []string, types types) (fields []*pb.FieldDescriptorProto, groups []*pb.DescriptorProto) {
 	extendee, _ := types.fullName(e.Reference, scope)
 	fdBuilder := fieldBuilder{proto3: proto3, scope: scope, types: types, extendee: &extendee}
 	fds := make([]*pb.FieldDescriptorProto, len(e.Fields))
+	var groupDescs []*pb.DescriptorProto
 	for i, pf := range e.Fields {
 		fds[i] = fdBuilder.createField(pf)
+		if group := pf.Group; group != nil {
+			groupDesc := newMessage(group.Name, group.Entries, proto3, scope, types)
+			groupDescs = append(groupDescs, groupDesc)
+		}
 	}
-	return fds
+	return fds, groupDescs
 }
