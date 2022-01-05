@@ -110,6 +110,17 @@ func analyseExtend(e *parser.Extend, scope []string, t types) {
 	}
 }
 
+func analyseField(f *parser.Field, scope []string, t types) {
+	if f.Group != nil {
+		analyseGroup(f.Group, scope, t)
+		return
+	}
+	if f.Direct != nil && f.Direct.Type != nil && f.Direct.Type.Map != nil {
+		mapType := mapTypeStr(f.Direct.Name)
+		t.addName(mapType, pb.FieldDescriptorProto_TYPE_MESSAGE, scope)
+	}
+}
+
 func analyseMessageEntries(messageEntries []*parser.MessageEntry, scope []string, t types) {
 	for _, me := range messageEntries {
 		switch {
@@ -119,8 +130,8 @@ func analyseMessageEntries(messageEntries []*parser.MessageEntry, scope []string
 			t.addName(me.Enum.Name, pb.FieldDescriptorProto_TYPE_ENUM, scope)
 		case me.Extend != nil:
 			analyseExtend(me.Extend, scope, t)
-		case me.Field != nil && me.Field.Group != nil:
-			analyseGroup(me.Field.Group, scope, t)
+		case me.Field != nil:
+			analyseField(me.Field, scope, t)
 		}
 	}
 }
