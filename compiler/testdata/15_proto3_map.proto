@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+message M {
+  message Nest1 {
+    optional string egg = 1;
+  }
+  map<string, int32> a_map = 1;
+  message Nest2 {
+    optional string egg = 1;
+  }
+  map<string, int64> a_map2 = 2;
+  Nest3 nest3 = 3;
+  message Nest3 {
+    optional string egg = 1;
+  }
+}

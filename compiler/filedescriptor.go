@@ -108,6 +108,10 @@ func (b *messageBuilder) addEntry(e *parser.MessageEntry) {
 	switch {
 	case e.Field != nil:
 		b.buildField(e.Field)
+		if isMap(e.Field) {
+			m := newMapEntry(e.Field, b.scope, b.types)
+			md.NestedType = append(md.NestedType, m)
+		}
 	case e.Message != nil:
 		m := newMessage(e.Message.Name, e.Message.Entries, b.proto3, b.scope, b.types)
 		md.NestedType = append(md.NestedType, m)
@@ -233,9 +237,6 @@ var scalars = map[parser.Scalar]pb.FieldDescriptorProto_Type{
 }
 
 func (b *fieldBuilder) createField(pField *parser.Field) *pb.FieldDescriptorProto {
-	if pField.Direct != nil && pField.Direct.Type.Map != nil {
-		panic(fmt.Sprintf("%s: map not implemented", pField.Pos))
-	}
 	fType, typeName := fieldType(pField, b.scope, b.types)
 	name := fieldName(pField)
 	df := &pb.FieldDescriptorProto{
@@ -281,6 +282,9 @@ func fieldTag(f *parser.Field) *int32 {
 
 func fieldType(f *parser.Field, scope []string, types types) (pb.FieldDescriptorProto_Type, *string) {
 	switch {
+	case isMap(f):
+		name, pbType := types.fullName(mapTypeStr(f.Direct.Name), scope)
+		return pbType, &name
 	case f.Direct != nil:
 		fType, name := newFieldDescriptorProtoType(f.Direct.Type, scope, types)
 		if fType == pb.FieldDescriptorProto_TYPE_GROUP {
@@ -304,8 +308,37 @@ func newFieldDescriptorProtoType(t *parser.Type, scope []string, types types) (p
 		name, pbType := types.fullName(*t.Reference, scope)
 		return pbType, &name
 	}
-	// maps
 	panic("unimplemented type, probably map")
+}
+
+func newMapEntry(f *parser.Field, scope []string, types types) *pb.DescriptorProto {
+	keyField := MapEntryField("key", 1, f.Direct.Type.Map.Key, scope, types)
+	valueField := MapEntryField("value", 2, f.Direct.Type.Map.Value, scope, types)
+	name := mapTypeStr(f.Direct.Name)
+	isMapEntry := true
+
+	return &pb.DescriptorProto{
+		Name:    &name,
+		Options: &pb.MessageOptions{MapEntry: &isMapEntry},
+		Field:   []*pb.FieldDescriptorProto{keyField, valueField},
+	}
+}
+
+func MapEntryField(name string, number int32, t *parser.Type, scope []string, types types) *pb.FieldDescriptorProto {
+	label := pb.FieldDescriptorProto_LABEL_OPTIONAL
+	fType, typeName := newFieldDescriptorProtoType(t, scope, types)
+	return &pb.FieldDescriptorProto{
+		Name:     &name,
+		Number:   &number,
+		JsonName: jsonStr(name),
+		Label:    &label,
+		Type:     &fType,
+		TypeName: typeName,
+	}
+}
+
+func isMap(f *parser.Field) bool {
+	return f != nil && f.Direct != nil && f.Direct.Type != nil && f.Direct.Type.Map != nil
 }
 
 func fieldLabel(pf *parser.Field, proto3, oneof bool) *pb.FieldDescriptorProto_Label {
@@ -320,6 +353,9 @@ func fieldLabel(pf *parser.Field, proto3, oneof bool) *pb.FieldDescriptorProto_L
 	case oneof:
 		// oneof fields are unlabelled in proto2 and proto3
 		label = pb.FieldDescriptorProto_LABEL_OPTIONAL
+	case isMap(pf):
+		// map<key, val> fields are unlabelled in proto2 and proto3
+		label = pb.FieldDescriptorProto_LABEL_REPEATED
 	case proto3:
 		// unlabelled proto3 field
 		label = pb.FieldDescriptorProto_LABEL_OPTIONAL
@@ -339,11 +375,20 @@ func proto3Optional(pf *parser.Field, proto3 bool) *bool {
 
 func jsonStr(s string) *string {
 	ss := strings.Split(s, "_")
-	result := strings.ToLower(ss[0])
+	result := ss[0]
 	for _, s := range ss[1:] {
-		result += strings.Title(strings.ToLower(s))
+		result += strings.Title(s)
 	}
 	return &result
+}
+
+func mapTypeStr(s string) string {
+	ss := strings.Split(s, "_")
+	result := ""
+	for _, s := range ss {
+		result += strings.Title(s)
+	}
+	return result + "Entry"
 }
 
 func newService(s *parser.Service, scope []string, types types) *pb.ServiceDescriptorProto {
