@@ -11,8 +11,12 @@ enum Color {
 }
 
 message M {
+  optional group MyGroup1 = 2 {
+    optional string s2 = 1;
+    optional string s3 = 2;
+  }
   optional string s = 1;
-  extensions 10 to 20;
+  extensions 10 to 25;
   optional string s2 = 30;
 }
 
@@ -20,10 +24,18 @@ extend M {
   optional string s3 = 10;
   repeated string s5 = 15;
   optional Color color = 11;
-  // optional group MyGroup = 16 {
-  //   optional string s2 = 17;
-  //   optional string s3 = 18;
-  // }
+  optional group MyGroup = 16 {
+    optional string s2 = 1;
+    optional string s3 = 2;
+  }
+}
+
+extend pkg.M {
+  optional string t1 = 19;
+}
+
+extend .pkg.M {
+  optional string t2 = 20;
 }
 
 extend google.protobuf.MethodOptions {
@@ -31,11 +43,18 @@ extend google.protobuf.MethodOptions {
   optional string opt2 = 72295729;
   repeated string opt3 = 72295730;
   optional Color opt4 = 72295731;
+  optional group MyGroup2 = 72295732 {
+    optional string s2 = 1;
+    optional string s3 = 2;
+    optional group Group3 = 3 {
+      repeated int32 i = 1;
+    }
+  }
 }
 
 message ColorMessage {
   optional Color color = 1;
   extend google.protobuf.MethodOptions {
-    optional ColorMessage c = 72295732;
+    optional ColorMessage c = 72295740;
   }
 }

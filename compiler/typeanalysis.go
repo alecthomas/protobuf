@@ -83,6 +83,9 @@ func analyseTypes(ast *ast, t types) {
 	for _, e := range ast.enums {
 		t.addName(e.Name, pb.FieldDescriptorProto_TYPE_ENUM, scope)
 	}
+	for _, e := range ast.extends {
+		analyseExtend(e, scope, t)
+	}
 }
 
 func analyseMessage(m *parser.Message, scope []string, t types) {
@@ -99,6 +102,14 @@ func analyseGroup(g *parser.Group, scope []string, t types) {
 	analyseMessageEntries(g.Entries, scope, t)
 }
 
+func analyseExtend(e *parser.Extend, scope []string, t types) {
+	for _, f := range e.Fields {
+		if f.Group != nil {
+			analyseGroup(f.Group, scope, t)
+		}
+	}
+}
+
 func analyseMessageEntries(messageEntries []*parser.MessageEntry, scope []string, t types) {
 	for _, me := range messageEntries {
 		switch {
@@ -106,6 +117,8 @@ func analyseMessageEntries(messageEntries []*parser.MessageEntry, scope []string
 			analyseMessage(me.Message, scope, t)
 		case me.Enum != nil:
 			t.addName(me.Enum.Name, pb.FieldDescriptorProto_TYPE_ENUM, scope)
+		case me.Extend != nil:
+			analyseExtend(me.Extend, scope, t)
 		case me.Field != nil && me.Field.Group != nil:
 			analyseGroup(me.Field.Group, scope, t)
 		}

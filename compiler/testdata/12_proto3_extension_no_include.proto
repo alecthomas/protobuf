@@ -19,6 +19,6 @@ extend google.protobuf.MethodOptions {
 message ColorMessage {
   Color color = 1;
   extend google.protobuf.MethodOptions {
-    optional ColorMessage c = 72295732;
+    optional ColorMessage c = 72295740;
   }
 }

@@ -6,7 +6,7 @@ message M {
     optional string s2 = 2;
     optional string s3 = 3;
   }
-  repeated group Group2 = 4 {
+  repeated group Group2 = 2 {
     optional string s5 = 5;
     optional string s6 = 6;
     repeated group Group3 = 7 {
