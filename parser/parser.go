@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"math/big"
-	"strings"
 
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
@@ -15,20 +14,36 @@ import (
 type Proto struct {
 	Pos lexer.Position
 
+	Comments *Comments `@@?`
+
 	Syntax  string   `("syntax" "=" @String ";")?`
 	Entries []*Entry `{ @@ { ";" } }`
+}
+
+type Comments struct {
+	Pos lexer.Position
+
+	Comments []*Comment `@@+`
+}
+
+type Comment struct {
+	Pos lexer.Position
+
+	Comment string `@Comment`
 }
 
 type Entry struct {
 	Pos lexer.Position
 
-	Package string   `"package" @(Ident { "." Ident })`
-	Import  *Import  `| @@`
-	Message *Message `| @@`
-	Service *Service `| @@`
-	Enum    *Enum    `| @@`
-	Option  *Option  `| "option" @@`
-	Extend  *Extend  `| @@`
+	Comments *Comments `@@?`
+
+	Package string   `(   "package" @(Ident { "." Ident })`
+	Import  *Import  `  | @@`
+	Message *Message `  | @@`
+	Service *Service `  | @@`
+	Enum    *Enum    `  | @@`
+	Option  *Option  `  | "option" @@`
+	Extend  *Extend  `  | @@ )`
 }
 
 type Import struct {
@@ -40,6 +55,8 @@ func (i *Import) children() (out []Node) { return nil }
 
 type Option struct {
 	Pos lexer.Position
+
+	Comments *Comments `@@?`
 
 	Name  []*OptionName `@@+`
 	Attr  *string       `[ @("."? Ident { "." Ident }) ]`
@@ -73,6 +90,8 @@ type ProtoText struct {
 
 type ProtoTextField struct {
 	Pos lexer.Position
+
+	Comments *Comments `@@?`
 
 	Name  string `(  @Ident`
 	Type  string `  | "[" @("."? Ident { ("." | "/") Ident }) "]" )`
@@ -140,15 +159,21 @@ type Enum struct {
 	Pos lexer.Position
 
 	Name   string       `"enum" @Ident`
-	Values []*EnumEntry `"{" { @@ { ";" } } "}"`
+	Values []*EnumEntry `"{" { @@ { ";" } }`
+
+	TrailingComments Comments `@@* "}"`
 }
 
 type EnumEntry struct {
 	Pos lexer.Position
 
-	Value    *EnumValue `  @@`
-	Option   *Option    `| "option" @@`
-	Reserved *Reserved  `| "reserved" @@`
+	Comments *Comments `@@?`
+
+	Value    *EnumValue `(   @@`
+	Option   *Option    `  | "option" @@`
+	Reserved *Reserved  `  | "reserved" @@ )`
+
+	TrailingComments *Comments `@@?`
 }
 
 type Options []*Option
@@ -172,6 +197,8 @@ type Message struct {
 type MessageEntry struct {
 	Pos lexer.Position
 
+	Comments *Comments `@@?`
+
 	Enum       *Enum       `( @@`
 	Option     *Option     ` | "option" @@`
 	Message    *Message    ` | @@`
@@ -180,6 +207,8 @@ type MessageEntry struct {
 	Reserved   *Reserved   ` | "reserved" @@`
 	Extensions *Extensions ` | @@`
 	Field      *Field      ` | @@ ) { ";" }`
+
+	TrailingComments *Comments `@@?`
 }
 
 type OneOf struct {
@@ -192,19 +221,25 @@ type OneOf struct {
 type OneOfEntry struct {
 	Pos lexer.Position
 
-	Field  *Field  `@@`
-	Option *Option `| "option" @@`
+	Comments *Comments `@@?`
+
+	Field  *Field  `(  @@`
+	Option *Option ` | "option" @@ )`
 }
 
 type Field struct {
 	Pos lexer.Position
+
+	Comments *Comments `@@?`
 
 	Optional bool `[   @"optional"`
 	Required bool `  | @"required"`
 	Repeated bool `  | @"repeated" ]`
 
 	Group  *Group  `( @@`
-	Direct *Direct `| @@ )`
+	Direct *Direct `| @@ ) ";"*`
+
+	TrailingComments *Comments `@@?`
 }
 
 type Direct struct {
@@ -292,28 +327,29 @@ type MapType struct {
 	Value *Type `"," @@ ">"`
 }
 
-// Parse protobuf.
-func Parse(filename string, r io.Reader) (*Proto, error) {
-	p := &Proto{}
-
-	l := lexer.MustSimple([]lexer.Rule{
+var (
+	lex = lexer.MustSimple([]lexer.Rule{
 		{"String", `"(\\"|[^"])*"|'(\\'|[^'])*'`, nil},
 		{"Ident", `[a-zA-Z_]([a-zA-Z_0-9])*`, nil},
 		{"Float", `[-+]?(\d*\.\d+([eE][-+]?\d+)?|\d+[eE][-+]?\d+|inf)`, nil},
 		{"Int", `[-+]?(0[xX][0-9A-Fa-f]+)|([-+]?\d+)`, nil},
 		{"Whitespace", `[ \t\n\r\s]+`, nil},
-		{"BlockComment", `/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/`, nil},
-		{"LineComment", `//(.*)[^\n]*\n`, nil},
+		{"Comment", `(/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/)|(//(.*)[^\n]*\n)`, nil},
 		{"Symbols", `[/={}\[\]()<>.,;:]`, nil},
 	})
 
-	parser := participle.MustBuild(
+	parser = participle.MustBuild(
 		&Proto{},
 		participle.UseLookahead(2),
 		participle.Map(unquote, "String"),
-		participle.Lexer(l),
-		participle.Elide("Whitespace", "LineComment", "BlockComment"),
+		participle.Lexer(lex),
+		participle.Elide("Whitespace"),
 	)
+)
+
+// Parse protobuf.
+func Parse(filename string, r io.Reader) (*Proto, error) {
+	p := &Proto{}
 	err := parser.Parse(filename, r, p)
 	if err != nil {
 		return p, err
@@ -322,5 +358,10 @@ func Parse(filename string, r io.Reader) (*Proto, error) {
 }
 
 func ParseString(filename string, source string) (*Proto, error) {
-	return Parse(filename, strings.NewReader(source))
+	p := &Proto{}
+	err := parser.ParseString(filename, source, p)
+	if err != nil {
+		return p, err
+	}
+	return p, nil
 }
