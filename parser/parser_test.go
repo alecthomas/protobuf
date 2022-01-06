@@ -1,14 +1,19 @@
 package parser
 
 import (
+	"math/big"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strconv"
 	"testing"
 
+	"github.com/alecthomas/participle/v2/lexer"
+	"github.com/alecthomas/repr"
 	"github.com/stretchr/testify/require"
 )
 
-func TestParser(t *testing.T) {
+func TestParserFromFixtures(t *testing.T) {
 	files, err := filepath.Glob("../testdata/*.proto")
 	require.NoError(t, err)
 	for _, file := range files {
@@ -17,6 +22,54 @@ func TestParser(t *testing.T) {
 			require.NoError(t, err)
 			_, err = Parse(file, r)
 			require.NoError(t, err)
+		})
+	}
+}
+
+func TestParser(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected *Proto
+	}{{
+		name: "MessageOptions",
+		input: `
+			message VariousComplexOptions {
+			  option (complex_opt2).bar.(protobuf_unittest.corge).qux = 2008;
+			  option (complex_opt2).(protobuf_unittest.garply).(corge).qux = 2121;
+			  option .(.ComplexOptionType2.ComplexOptionType4.complex_opt4).waldo = 1971;
+			}
+			`,
+		expected: &Proto{
+			Entries: []*Entry{
+				{Message: &Message{
+					Name: "VariousComplexOptions",
+					Entries: []*MessageEntry{
+						{Option: &Option{
+							Name:  []*OptionName{{Name: "(complex_opt2)"}, {Name: "bar"}, {Name: "(protobuf_unittest.corge)"}, {Name: "qux"}},
+							Value: &Value{Number: toBig(2008)},
+						}},
+						{Option: &Option{
+							Name:  []*OptionName{{Name: "(complex_opt2)"}, {Name: "(protobuf_unittest.garply)"}, {Name: "(corge)"}, {Name: "qux"}},
+							Value: &Value{Number: toBig(2121)},
+						}},
+						{Option: &Option{
+							Name:  []*OptionName{{Name: ".(.ComplexOptionType2.ComplexOptionType4.complex_opt4)"}, {Name: "waldo"}},
+							Value: &Value{Number: toBig(1971)},
+						}},
+					},
+				}},
+			},
+		}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			actual, err := ParseString(test.name, test.input)
+			require.NoError(t, err)
+			_ = Visit(actual, clearPos)
+			expectedStr := repr.String(test.expected, repr.Indent("  "))
+			actualStr := repr.String(actual, repr.Indent("  "))
+			require.Equal(t, expectedStr, actualStr, actualStr)
 		})
 	}
 }
@@ -54,4 +107,16 @@ func imports(from *Proto) []*Import {
 		}
 	}
 	return result
+}
+
+var zeroPos = reflect.ValueOf(lexer.Position{})
+
+func clearPos(node Node, next func() error) error {
+	reflect.Indirect(reflect.ValueOf(node)).FieldByName("Pos").Set(zeroPos)
+	return next()
+}
+
+func toBig(n int) *big.Float {
+	f, _, _ := big.ParseFloat(strconv.Itoa(n), 10, 64, 0)
+	return f
 }
