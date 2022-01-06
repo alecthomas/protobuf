@@ -7,9 +7,6 @@ ci: clean check-uptodate all  ## Full clean build and up-to-date checks as run o
 check-uptodate: sync pb tidy
 	test -z "$$(git status --porcelain)"
 
-clean::  ## Remove generated files
-	-rm -rf $(O)
-
 .PHONY: all check-uptodate ci clean
 
 # --- Test -------------------------------------------------------------
@@ -28,7 +25,7 @@ lint:  ## Lint go source code
 .PHONY: lint test
 
 # --- Conformance ------------------------------------------------------
-sync:  ## Clone and copy conformance protos from GitHub
+sync: sync-googleapis  ## Clone and copy conformance protos from GitHub
 	$(eval DEST := $(shell mktemp -d))
 	git clone --depth=1 https://github.com/protocolbuffers/protobuf.git $(DEST)
 	cp $(DEST)/src/google/protobuf/*.proto testdata/conformance
@@ -36,10 +33,17 @@ sync:  ## Clone and copy conformance protos from GitHub
 	cp $(DEST)/src/google/protobuf/descriptor.proto  compiler/testdata/google/protobuf/descriptor.proto
 	rm -rf $(DEST)
 
-clean::
+sync-googleapis:
+	$(eval DEST := $(shell mktemp -d))
+	git clone --depth=1 https://github.com/googleapis/googleapis.git $(DEST)
+	cp $(DEST)/google/api/http.proto compiler/testdata/google/api
+	cp $(DEST)/google/api/annotations.proto compiler/testdata/google/api
+	rm -rf $(DEST)
+
+clean::  ## Remove generated files
 	rm -rf testdata/conformance/*
 
-.PHONY: sync
+.PHONY: sync sync-googleapis
 
 # --- Protos -----------------------------------------------------------
 COMPILER_PROTO_FILES = $(wildcard compiler/testdata/*.proto)

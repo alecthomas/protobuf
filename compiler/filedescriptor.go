@@ -182,7 +182,7 @@ func newExtensionRanges(er *parser.Extensions) []*pb.DescriptorProto_ExtensionRa
 	return extensionRanges
 }
 
-func reservedRange(r parser.Range) (start int32, end int32) {
+func reservedRange(r *parser.Range) (start int32, end int32) {
 	start = int32(r.Start)
 	end = int32(r.Start) + 1
 	if r.End != nil {
