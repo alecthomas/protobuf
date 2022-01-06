@@ -26,17 +26,35 @@ func Visit(root Node, visit Visitor) error {
 }
 
 func (p *Proto) children() (out []Node) {
+	out = append(out, p.Comments.children()...)
 	for _, child := range p.Entries {
 		out = append(out, child)
 	}
 	return out
 }
 
+func (c *Comments) children() (out []Node) {
+	if c == nil {
+		return nil
+	}
+	for _, comment := range c.Comments {
+		out = append(out, comment)
+	}
+	return
+}
+
+func (c *Comment) children() (out []Node) {
+	return nil
+}
+
 func (e *Entry) children() (out []Node) {
-	return []Node{e.Import, e.Message, e.Service, e.Enum, e.Option, e.Extend}
+	out = append(out, e.Comments.children()...)
+	out = append(out, e.Import, e.Message, e.Service, e.Enum, e.Option, e.Extend)
+	return
 }
 
 func (o *Option) children() (out []Node) {
+	out = append(out, o.Comments.children()...)
 	for _, name := range o.Name {
 		out = append(out, name)
 	}
@@ -56,6 +74,7 @@ func (p *ProtoText) children() (out []Node) {
 }
 
 func (p *ProtoTextField) children() (out []Node) {
+	out = append(out, p.Comments.children()...)
 	out = append(out, p.Value)
 	return out
 }
@@ -113,6 +132,7 @@ func (e *Enum) children() (out []Node) {
 	for _, enum := range e.Values {
 		out = append(out, enum)
 	}
+	out = append(out, e.TrailingComments.children()...)
 	return
 }
 
@@ -139,7 +159,10 @@ func (m *Message) children() (out []Node) {
 }
 
 func (m *MessageEntry) children() (out []Node) {
-	return []Node{m.Enum, m.Option, m.Message, m.Oneof, m.Extend, m.Reserved, m.Extensions, m.Field}
+	out = append(out, m.Comments.children()...)
+	out = append(out, m.Enum, m.Option, m.Message, m.Oneof, m.Extend, m.Reserved, m.Extensions, m.Field)
+	out = append(out, m.TrailingComments.children()...)
+	return
 }
 
 func (o *OneOf) children() (out []Node) {
@@ -150,11 +173,16 @@ func (o *OneOf) children() (out []Node) {
 }
 
 func (o *OneOfEntry) children() (out []Node) {
-	return []Node{o.Field, o.Option}
+	out = append(out, o.Comments.children()...)
+	out = append(out, o.Field, o.Option)
+	return
 }
 
 func (f *Field) children() (out []Node) {
-	return []Node{f.Group, f.Direct}
+	out = append(out, f.Comments.children()...)
+	out = append(out, f.Group, f.Direct)
+	out = append(out, f.TrailingComments.children()...)
+	return
 }
 
 func (d *Direct) children() (out []Node) {
