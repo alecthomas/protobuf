@@ -38,6 +38,7 @@ func TestParser(t *testing.T) {
 			  option (complex_opt2).bar.(protobuf_unittest.corge).qux = 2008;
 			  option (complex_opt2).(protobuf_unittest.garply).(corge).qux = 2121;
 			  option .(.ComplexOptionType2.ComplexOptionType4.complex_opt4).waldo = 1971;
+			  option (strings) = "1" "2";
 			}
 			`,
 		expected: &Proto{
@@ -56,6 +57,10 @@ func TestParser(t *testing.T) {
 						{Option: &Option{
 							Name:  []*OptionName{{Name: ".(.ComplexOptionType2.ComplexOptionType4.complex_opt4)"}, {Name: "waldo"}},
 							Value: &Value{Number: toBig(1971)},
+						}},
+						{Option: &Option{
+							Name:  []*OptionName{{Name: "(strings)"}},
+							Value: &Value{String: strP("12")},
 						}},
 					},
 				}},
@@ -119,4 +124,8 @@ func clearPos(node Node, next func() error) error {
 func toBig(n int) *big.Float {
 	f, _, _ := big.ParseFloat(strconv.Itoa(n), 10, 64, 0)
 	return f
+}
+
+func strP(s string) *string {
+	return &s
 }
