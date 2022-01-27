@@ -1,8 +1,8 @@
-# A Protobuf parser for Go
+# A Protobuf IDL Parser for Go
 
-This package contains a cleanroom Protobuf parser for Go using [Participle](https://github.com/alecthomas/participle).
+This package contains a cleanroom Protobuf IDL source parser for Go using [Participle](https://github.com/alecthomas/participle).
 
-This was originally an example within Participle.
+This was extracted from an example within Participle.
 
 ## Tests
 
