@@ -1,0 +1,10 @@
+syntax = "proto2";
+
+import "18_a_proto2_aggregate_opt.proto";
+
+package pkg;
+
+message User {
+  option (.pkg.opt1) = {s1: "1"  s2: "2"};
+  optional int64 num = 1;
+}

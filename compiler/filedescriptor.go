@@ -161,7 +161,10 @@ func newUninterpretedOption(o *parser.Option) *pb.UninterpretedOption {
 		o := &pb.UninterpretedOption_NamePart{NamePart: &name, IsExtension: &isExtension}
 		opt.Name = append(opt.Name, o)
 	}
-
+	if o.Value.ProtoText != nil {
+		str := o.Value.ProtoText.String()
+		opt.AggregateValue = &str
+	}
 	return opt
 }
 

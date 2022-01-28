@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -85,6 +86,56 @@ func TestParser(t *testing.T) {
 			expectedStr := repr.String(test.expected, repr.Indent("  "))
 			actualStr := repr.String(actual, repr.Indent("  "))
 			require.Equal(t, expectedStr, actualStr, actualStr)
+		})
+	}
+}
+
+func TestProtoTextString(t *testing.T) {
+	tests := []struct {
+		name string
+		in   Value
+		want string
+	}{{
+		name: "string",
+		in:   Value{String: strP("howdy")},
+		want: `"howdy"`,
+	}, {
+		name: "bool",
+		in:   Value{Bool: boolP(true)},
+		want: "true",
+	}, {
+		name: "number",
+		in:   Value{Number: toBig(2008)},
+		want: "2008",
+	}, {
+		name: "array",
+		in:   Value{Array: &Array{Elements: []*Value{{String: strP("1")}, {String: strP("2")}}}},
+		want: `[ "1", "2" ]`,
+	}, {
+		name: "nested",
+		in: Value{ProtoText: &ProtoText{
+			Fields: []*ProtoTextField{
+				{Name: "aString", Value: &Value{String: strP("abc")}},
+				{Type: "aNum", Value: &Value{Number: toBig(12)}},
+				{Name: "nest", Value: &Value{ProtoText: &ProtoText{Fields: []*ProtoTextField{
+					{Name: "egg", Value: &Value{String: strP("chick")}},
+				}}}},
+			},
+		}},
+		want: `{
+    aString: "abc"
+    aNum: 12
+    nest: {
+      egg: "chick"
+    }
+  }`,
+	}}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pt := ProtoText{Fields: []*ProtoTextField{{Name: "a_name", Value: &tt.in}}}
+			got := pt.String()
+			want := fmt.Sprintf("\n  %s: %s\n", "a_name", tt.want)
+			require.Equal(t, want, got)
 		})
 	}
 }
