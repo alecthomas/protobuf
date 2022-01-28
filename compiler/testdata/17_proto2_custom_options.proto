@@ -1,0 +1,32 @@
+syntax = "proto2";
+
+import "google/protobuf/descriptor.proto";
+
+package pkg;
+
+// Options extension ranges for private extensions 50000-99999
+
+message Opt {
+  optional string s1 = 1;
+  optional string s2 = 2;
+  optional string s3 = 3;
+  optional string s4 = 4;
+}
+
+extend google.protobuf.MessageOptions {
+  optional Opt opt1 = 50001;
+  optional string opt2 = 50002;
+  optional string opt3 = 50003;
+  optional string opt4 = 50004;
+}
+
+message User {
+  option (.pkg.opt1).s1 = "opt1-s1";
+  option (pkg.opt1).s2 = "opt1-s2";
+  option (opt1).s3 = "opt1-s3";
+  option (.pkg.opt2) = "opt2";
+  option (pkg.opt3) = "opt3";
+  option (opt4) = "opt4";
+  option deprecated = true;
+  optional int64 num = 1;
+}

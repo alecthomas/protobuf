@@ -118,6 +118,7 @@ func (b *messageBuilder) addEntry(e *parser.MessageEntry) {
 	case e.Enum != nil:
 		md.EnumType = append(md.EnumType, newEnum(e.Enum))
 	case e.Option != nil:
+		b.buildOption(e.Option)
 	case e.Oneof != nil:
 		b.buildOneof(e.Oneof)
 	case e.Extend != nil:
@@ -134,6 +135,63 @@ func (b *messageBuilder) addEntry(e *parser.MessageEntry) {
 	default:
 		panic(fmt.Sprintf("%s: cannot interpret MessageEntry", e.Pos))
 	}
+}
+
+func (b *messageBuilder) buildOption(o *parser.Option) {
+	if b.messageDesc.Options == nil {
+		b.messageDesc.Options = &pb.MessageOptions{}
+	}
+	pbOpt := b.messageDesc.Options
+	if ok := buildDirectMessageOption(o, pbOpt); ok {
+		return
+	}
+	pbOpt.UninterpretedOption = append(pbOpt.UninterpretedOption, newUninterpretedOption(o))
+}
+
+func newUninterpretedOption(o *parser.Option) *pb.UninterpretedOption {
+	opt := &pb.UninterpretedOption{}
+	for _, optName := range o.Name {
+		name := optName.Name
+		isExtension := false
+		if strings.HasPrefix(name, "(") {
+			name = strings.TrimPrefix(name, "(")
+			name = strings.TrimSuffix(name, ")")
+			isExtension = true
+		}
+		o := &pb.UninterpretedOption_NamePart{NamePart: &name, IsExtension: &isExtension}
+		opt.Name = append(opt.Name, o)
+	}
+
+	return opt
+}
+
+// directMessageOption parses fields in the Original MessageOptions message
+// e.g. "deprecated". It is not concerned with MessageOptions extension,
+func buildDirectMessageOption(o *parser.Option, pbOpt *pb.MessageOptions) bool {
+	if len(o.Name) != 1 {
+		return false
+	}
+	name := o.Name[0].Name
+	if strings.HasPrefix(name, "(") { // extension, skip
+		return false
+	}
+	if o.Value.Bool == nil {
+		panic(fmt.Sprintf("all known message options are bool. For %q got %#v", name, o.Value))
+	}
+	val := bool(*o.Value.Bool)
+	switch name {
+	case "deprecated":
+		pbOpt.Deprecated = &val
+	case "map_entry":
+		pbOpt.MapEntry = &val
+	case "message_set_wire_format":
+		pbOpt.MessageSetWireFormat = &val
+	case "no_standard_descriptor_accessor":
+		pbOpt.NoStandardDescriptorAccessor = &val
+	default:
+		panic(fmt.Sprintf("unknown, non-custom message option %q", name))
+	}
+	return true
 }
 
 func (b *messageBuilder) buildOneof(po *parser.OneOf) {

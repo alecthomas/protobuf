@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package pkg;
+
+message User {
+  option deprecated = true;
+  option message_set_wire_format = false;
+  option no_standard_descriptor_accessor = true;
+  option map_entry = false;
+
+  optional int64 id = 1;
+}
