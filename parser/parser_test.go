@@ -39,6 +39,8 @@ func TestParser(t *testing.T) {
 			  option (complex_opt2).(protobuf_unittest.garply).(corge).qux = 2121;
 			  option (.ComplexOptionType2.ComplexOptionType4.complex_opt4).waldo = 1971;
 			  option (strings) = "1" "2";
+			  option deprecated = true;
+			  option deprecated = false;
 			}
 			`,
 		expected: &Proto{
@@ -61,6 +63,14 @@ func TestParser(t *testing.T) {
 						{Option: &Option{
 							Name:  []*OptionName{{Name: "(strings)"}},
 							Value: &Value{String: strP("12")},
+						}},
+						{Option: &Option{
+							Name:  []*OptionName{{Name: "deprecated"}},
+							Value: &Value{Bool: boolP(true)},
+						}},
+						{Option: &Option{
+							Name:  []*OptionName{{Name: "deprecated"}},
+							Value: &Value{Bool: boolP(false)},
 						}},
 					},
 				}},
@@ -128,4 +138,9 @@ func toBig(n int) *big.Float {
 
 func strP(s string) *string {
 	return &s
+}
+
+func boolP(b bool) *Boolean {
+	bv := Boolean(b)
+	return &bv
 }
