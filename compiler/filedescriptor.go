@@ -136,7 +136,7 @@ func (b *messageBuilder) addEntry(e *parser.MessageEntry) {
 	}
 }
 
-func (b *messageBuilder) buildOneof(po *parser.OneOf) *pb.OneofDescriptorProto {
+func (b *messageBuilder) buildOneof(po *parser.OneOf) {
 	o := &pb.OneofDescriptorProto{
 		Name:    &po.Name,
 		Options: nil,
@@ -159,7 +159,6 @@ func (b *messageBuilder) buildOneof(po *parser.OneOf) *pb.OneofDescriptorProto {
 			panic(fmt.Sprintf("%s: cannot interpret OneofEntry", e.Pos))
 		}
 	}
-	return o
 }
 
 func newMessageRanges(pr *parser.Reserved) []*pb.DescriptorProto_ReservedRange {
