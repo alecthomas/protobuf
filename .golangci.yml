@@ -15,6 +15,7 @@ linters:
     - gci
     - gochecknoglobals
     - godot
+    - godox
     - golint
     - gomnd
     - interfacer

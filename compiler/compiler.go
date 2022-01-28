@@ -10,7 +10,13 @@ import (
 	"path/filepath"
 
 	"github.com/alecthomas/protobuf/parser"
+	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protodesc"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/reflect/protoregistry"
 	pb "google.golang.org/protobuf/types/descriptorpb"
+	"google.golang.org/protobuf/types/dynamicpb"
 )
 
 // ast is a convenience data structure on top of parser.Proto,
@@ -40,6 +46,23 @@ type ast struct {
 // FileDescriptorSet is the intermediary representation typically
 // passed to proto plugins.
 func NewFileDescriptorSet(files, importPaths []string, includeImports bool) (*pb.FileDescriptorSet, error) {
+	all, filtered, err := compileFileDescriptorSets(files, importPaths, includeImports)
+	if err != nil {
+		return nil, err
+	}
+	err = resolveCustomOptions(all, filtered)
+	if err != nil {
+		return nil, err
+	}
+	return filtered, nil
+}
+
+// compileFileDescriptorSets returns a FileDescriptorSet of all given
+// proto files _and_ their transitive dependencies as well as a
+// FileDescriptorSet of only the given proto files without their
+// transitive dependencies if includeImports is if false. If
+// includeImports is true all and filter FileDescriptorSets are identical.
+func compileFileDescriptorSets(files, importPaths []string, includeImports bool) (all *pb.FileDescriptorSet, filtered *pb.FileDescriptorSet, err error) {
 	done := map[string]bool{}
 	origFiles := map[string]bool{}
 	for _, file := range files {
@@ -47,17 +70,61 @@ func NewFileDescriptorSet(files, importPaths []string, includeImports bool) (*pb
 	}
 	asts, err := readProtos(files, importPaths, done)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	types := newTypes(asts)
-	fds := &pb.FileDescriptorSet{}
+	all = &pb.FileDescriptorSet{}
+	filtered = &pb.FileDescriptorSet{}
 	for _, a := range asts {
+		fd := newFileDescriptor(a, types)
+		all.File = append(all.File, fd)
 		if includeImports || origFiles[a.file] {
-			fd := newFileDescriptor(a, types)
-			fds.File = append(fds.File, fd)
+			filtered.File = append(filtered.File, fd)
 		}
 	}
-	return fds, nil
+	return all, filtered, nil
+}
+
+func resolveCustomOptions(all, filtered *pb.FileDescriptorSet) error {
+	files, err := protodesc.NewFiles(all)
+	if err != nil {
+		return err
+	}
+
+	for _, fd := range filtered.File {
+		for _, md := range fd.GetMessageType() {
+			opts := md.GetOptions()
+			if opts == nil {
+				continue
+			}
+			for _, opt := range opts.GetUninterpretedOption() {
+				name := fullName(opt.Name)
+				desc, err := files.FindDescriptorByName(name)
+				if err != nil {
+					return err
+				}
+				ed, ok := desc.(protoreflect.ExtensionDescriptor)
+				if !ok {
+					return fmt.Errorf("expected ExtensionDescriptor, got %T :%w", desc, protoregistry.NotFound)
+				}
+				// TODO: extends for extension fields that are not Messages (e.g. scalars)
+				message := dynamicpb.NewMessage(ed.Message())
+				err = prototext.Unmarshal([]byte(*opt.AggregateValue), message)
+				if err != nil {
+					return err
+				}
+				proto.SetExtension(opts, dynamicpb.NewExtensionType(ed), message)
+			}
+			opts.UninterpretedOption = nil
+		}
+	}
+	return nil
+}
+
+func fullName(names []*pb.UninterpretedOption_NamePart) protoreflect.FullName {
+	// TODO: extend for field references and extensions of extensions.
+	str := protoreflect.FullName((*names[0].NamePart)[1:])
+	return str
 }
 
 // readProtos creates ASTs for given files and their dependencies in
@@ -71,7 +138,7 @@ func NewFileDescriptorSet(files, importPaths []string, includeImports bool) (*pb
 // * f1 imports f2 which imports f3
 // * g1 imports g2, g3, f3
 // readProtos([]string{f1, g1}, ...)
-// results in the following order: f3, f2, f1, g2, g3, f2
+// results in the following order: f3, f2, f1, g2, g3, g1
 func readProtos(files, importPaths []string, done map[string]bool) ([]*ast, error) {
 	asts := make([]*ast, 0, len(files))
 	for _, file := range files {

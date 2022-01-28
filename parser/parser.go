@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"strings"
 
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
@@ -329,6 +330,56 @@ type MapType struct {
 
 	Key   *Type `"map" "<" @@`
 	Value *Type `"," @@ ">"`
+}
+
+func (p *ProtoText) String() string {
+	var b strings.Builder
+	indent := "  "
+	b.WriteString("\n")
+	for _, f := range p.Fields {
+		val := f.Value.indentString(indent)
+		fmt.Fprintf(&b, "%s%s%s: %s\n", indent, f.Name, f.Type, val)
+	}
+	return b.String()
+}
+
+func (p *ProtoText) indentString(indent string) string {
+	var b strings.Builder
+	b.WriteString("{\n")
+	for _, f := range p.Fields {
+		indent2 := indent + "  "
+		val := f.Value.indentString(indent2)
+		fmt.Fprintf(&b, "%s%s%s: %s\n", indent2, f.Name, f.Type, val)
+	}
+	b.WriteString(indent + "}")
+	return b.String()
+}
+
+func (v *Value) indentString(indent string) string {
+	switch {
+	case v.String != nil:
+		return `"` + *v.String + `"`
+	case v.Number != nil:
+		return v.Number.String()
+	case v.Bool != nil:
+		return fmt.Sprintf("%t", *v.Bool)
+	case v.Reference != nil:
+		return *v.Reference
+	case v.ProtoText != nil:
+		return v.ProtoText.indentString(indent)
+	case v.Array != nil:
+		return v.Array.indentString(indent)
+	default:
+		return "UNKNOWN-VALUE"
+	}
+}
+
+func (a *Array) indentString(indent string) string {
+	s := make([]string, len(a.Elements))
+	for i, e := range a.Elements {
+		s[i] = e.indentString(indent)
+	}
+	return "[ " + strings.Join(s, ", ") + " ]"
 }
 
 var (
