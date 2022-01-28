@@ -76,11 +76,15 @@ type Value struct {
 
 	String    *string    `  @String+`
 	Number    *big.Float `| ("-" | "+")? (@Float | @Int)`
-	Bool      *bool      `| (@"true" | "false")`
+	Bool      *Boolean   `| @("true"|"false")`
 	Reference *string    `| @("."? Ident { "." Ident })`
 	ProtoText *ProtoText `| "{" @@ "}"`
 	Array     *Array     `| @@`
 }
+
+type Boolean bool
+
+func (b *Boolean) Capture(v []string) error { *b = v[0] == "true"; return nil }
 
 type ProtoText struct {
 	Pos lexer.Position
