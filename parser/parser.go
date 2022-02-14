@@ -123,9 +123,10 @@ type Reserved struct {
 }
 
 type Range struct {
-	Start int  `@Int`
-	End   *int `  [ "to" ( @Int`
-	Max   bool `           | @"max" ) ]`
+	Start   int     `@Int`
+	End     *int    `  [ "to" ( @Int`
+	Max     bool    `           | @"max" ) ]`
+	Options Options `[ "[" @@ { "," @@ } "]" ]`
 }
 
 type Extend struct {
@@ -353,6 +354,10 @@ func (p *ProtoText) indentString(indent string) string {
 	}
 	b.WriteString(indent + "}")
 	return b.String()
+}
+
+func (v *Value) ToString() string {
+	return v.indentString("")
 }
 
 func (v *Value) indentString(indent string) string {

@@ -46,7 +46,7 @@ func newFileDescriptor(ast *ast, types types) *pb.FileDescriptorProto {
 	fd := &pb.FileDescriptorProto{
 		Name:             &ast.file,
 		Syntax:           syntax,
-		Options:          newOptions(ast.options),
+		Options:          newFileOptions(ast.options),
 		Dependency:       ast.imports,
 		PublicDependency: ast.publicImports,
 
@@ -216,6 +216,7 @@ func (b *messageBuilder) buildOneof(po *parser.OneOf) {
 			fieldDesc := fdBuilder.createField(e.Field)
 			b.messageDesc.Field = append(b.messageDesc.Field, fieldDesc)
 		case e.Option != nil:
+			o.Options.UninterpretedOption = append(o.Options.UninterpretedOption, newUninterpretedOption(e.Option))
 		default:
 			panic(fmt.Sprintf("%s: cannot interpret OneofEntry", e.Pos))
 		}
@@ -236,7 +237,11 @@ func newExtensionRanges(er *parser.Extensions) []*pb.DescriptorProto_ExtensionRa
 	extensionRanges := make([]*pb.DescriptorProto_ExtensionRange, 0, len(er.Extensions))
 	for _, r := range er.Extensions {
 		start, end := reservedRange(r)
-		rr := &pb.DescriptorProto_ExtensionRange{Start: &start, End: &end}
+		rr := &pb.DescriptorProto_ExtensionRange{
+			Start:   &start,
+			End:     &end,
+			Options: newExtensionRangeOptions(r.Options),
+		}
 		extensionRanges = append(extensionRanges, rr)
 	}
 	return extensionRanges
@@ -252,6 +257,17 @@ func reservedRange(r *parser.Range) (start int32, end int32) {
 		end = maxReserved
 	}
 	return start, end
+}
+
+func newExtensionRangeOptions(po []*parser.Option) *pb.ExtensionRangeOptions {
+	if len(po) == 0 {
+		return nil
+	}
+	opts := &pb.ExtensionRangeOptions{}
+	for _, o := range po {
+		opts.UninterpretedOption = append(opts.UninterpretedOption, newUninterpretedOption(o))
+	}
+	return opts
 }
 
 func (b *messageBuilder) buildField(pField *parser.Field) {
@@ -299,6 +315,7 @@ var scalars = map[parser.Scalar]pb.FieldDescriptorProto_Type{
 func (b *fieldBuilder) createField(pField *parser.Field) *pb.FieldDescriptorProto {
 	fType, typeName := fieldType(pField, b.scope, b.types)
 	name := fieldName(pField)
+	options, defaultValue := newFieldOptions(pField)
 	df := &pb.FieldDescriptorProto{
 		Name:           &name,
 		Number:         fieldTag(pField),
@@ -309,9 +326,9 @@ func (b *fieldBuilder) createField(pField *parser.Field) *pb.FieldDescriptorProt
 		Type:         &fType, // Message, Enum, Group, string, int32,...
 		TypeName:     typeName,
 		Extendee:     b.extendee,
-		DefaultValue: nil,
+		DefaultValue: defaultValue,
 		OneofIndex:   b.oneofIndex,
-		Options:      nil,
+		Options:      options,
 	}
 
 	return df
@@ -452,20 +469,14 @@ func mapTypeStr(s string) string {
 }
 
 func newService(s *parser.Service, scope []string, types types) *pb.ServiceDescriptorProto {
-	methods := []*pb.MethodDescriptorProto{}
+	sd := &pb.ServiceDescriptorProto{Name: &s.Name}
 	for _, e := range s.Entry {
 		if e.Method != nil {
-			method := newMethod(e.Method, scope, types)
-			methods = append(methods, method)
+			sd.Method = append(sd.Method, newMethod(e.Method, scope, types))
+		} else if e.Option != nil {
+			buildServiceOption(sd, e.Option)
 		}
 	}
-
-	sd := &pb.ServiceDescriptorProto{
-		Name:    &s.Name,
-		Method:  methods,
-		Options: nil,
-	}
-
 	return sd
 }
 
@@ -489,7 +500,7 @@ func newMethod(m *parser.Method, scope []string, types types) *pb.MethodDescript
 		Name:            &m.Name,
 		InputType:       inputTypeName,
 		OutputType:      outputTypeName,
-		Options:         nil,
+		Options:         newMethodOptions(m.Options),
 		ClientStreaming: clientStreaming,
 		ServerStreaming: serverStreaming,
 	}
@@ -497,39 +508,68 @@ func newMethod(m *parser.Method, scope []string, types types) *pb.MethodDescript
 	return md
 }
 
+func buildServiceOption(sd *pb.ServiceDescriptorProto, o *parser.Option) {
+	if sd.Options == nil {
+		sd.Options = &pb.ServiceOptions{}
+	}
+	if len(o.Name) == 1 && o.Name[0].Name == "deprecated" {
+		sd.Options.Deprecated = (*bool)(o.Value.Bool)
+		return
+	}
+	sd.Options.UninterpretedOption = append(sd.Options.UninterpretedOption, newUninterpretedOption(o))
+}
+
 func newEnum(enum *parser.Enum) *pb.EnumDescriptorProto {
-	var vals []*pb.EnumValueDescriptorProto
-	var reservedNames []string
-	var reservedRanges []*pb.EnumDescriptorProto_EnumReservedRange
+	ed := &pb.EnumDescriptorProto{Name: &enum.Name}
 	for _, e := range enum.Values {
 		switch {
 		case e.Value != nil:
-			enumVal := newEnumValue(e.Value)
-			vals = append(vals, enumVal)
+			ed.Value = append(ed.Value, newEnumValue(e.Value))
 		case e.Reserved != nil:
 			er := newEnumRanges(e.Reserved)
-			reservedRanges = append(reservedRanges, er...)
-			reservedNames = append(reservedNames, e.Reserved.FieldNames...)
+			ed.ReservedRange = append(ed.ReservedRange, er...)
+			ed.ReservedName = append(ed.ReservedName, e.Reserved.FieldNames...)
 		case e.Option != nil:
-			panic(fmt.Sprintf("%s: enum option not implemented", e.Pos))
+			buildEnumOption(ed, e.Option)
 		}
 	}
-	ed := &pb.EnumDescriptorProto{
-		Name:          &enum.Name,
-		Value:         vals,
-		Options:       nil,
-		ReservedRange: reservedRanges,
-		ReservedName:  reservedNames,
-	}
 	return ed
+}
+
+func buildEnumOption(ed *pb.EnumDescriptorProto, o *parser.Option) {
+	if ed.Options == nil {
+		ed.Options = &pb.EnumOptions{}
+	}
+	if len(o.Name) != 1 {
+		ed.Options.UninterpretedOption = append(ed.Options.UninterpretedOption, newUninterpretedOption(o))
+		return
+	}
+	name := o.Name[0].Name
+	switch name {
+	case "allow_alias":
+		ed.Options.AllowAlias = (*bool)(o.Value.Bool)
+	case "deprecated":
+		ed.Options.Deprecated = (*bool)(o.Value.Bool)
+	default:
+		ed.Options.UninterpretedOption = append(ed.Options.UninterpretedOption, newUninterpretedOption(o))
+	}
 }
 
 func newEnumValue(e *parser.EnumValue) *pb.EnumValueDescriptorProto {
 	val := int32(e.Value)
 	ed := &pb.EnumValueDescriptorProto{
-		Name:    &e.Key,
-		Number:  &val,
-		Options: nil,
+		Name:   &e.Key,
+		Number: &val,
+	}
+	if len(e.Options) != 0 {
+		ed.Options = &pb.EnumValueOptions{}
+		for _, o := range e.Options {
+			if len(o.Name) == 1 && o.Name[0].Name == "deprecated" {
+				ed.Options.Deprecated = (*bool)(o.Value.Bool)
+				continue
+			}
+			ed.Options.UninterpretedOption = append(ed.Options.UninterpretedOption, newUninterpretedOption(o))
+		}
 	}
 	return ed
 }
@@ -549,14 +589,6 @@ func newEnumRanges(pr *parser.Reserved) []*pb.EnumDescriptorProto_EnumReservedRa
 		reservedRanges = append(reservedRanges, er)
 	}
 	return reservedRanges
-}
-
-func newOptions(o []*parser.Option) *pb.FileOptions {
-	if o == nil {
-		return nil
-	}
-	opts := &pb.FileOptions{}
-	return opts
 }
 
 func newExtend(e *parser.Extend, proto3 bool, scope []string, types types) (fields []*pb.FieldDescriptorProto, groups []*pb.DescriptorProto) {

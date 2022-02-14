@@ -14,6 +14,7 @@ linters:
     - forbidigo
     - gci
     - gochecknoglobals
+    - goconst
     - godot
     - godox
     - golint
