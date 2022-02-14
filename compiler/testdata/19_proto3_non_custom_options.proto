@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package pkg;
+
+import "google/protobuf/descriptor.proto";
+
+option java_package = "java_package";
+option java_outer_classname = "java_outer_classname";
+option go_package = "go_package";
+option objc_class_prefix = "PKG";
+option csharp_namespace = "csharp_namespace";
+option swift_prefix = "swift_prefix";
+option php_class_prefix = "php_class_prefix";
+option php_namespace = "php_namespace";
+option php_metadata_namespace = "php_metadata_namespace";
+option ruby_package = "ruby_package";
+
+option java_multiple_files = true;
+option java_generate_equals_and_hash = true;
+option java_string_check_utf8 = false;
+option cc_generic_services = true;
+option java_generic_services = false;
+option py_generic_services = true;
+option php_generic_services = false;
+option deprecated = true;
+option cc_enable_arenas = true;
+option optimize_for = CODE_SIZE;
+
+message M {
+  message Sub {
+    optional int64 sub = 1;
+  }
+  optional string f1 = 1 [ ctype = CORD];
+  repeated int32 f2 = 2 [ packed = true, ctype = STRING_PIECE];
+  optional int64 f3 = 3 [ jstype = JS_NUMBER];
+  optional Sub f4 = 4  [ lazy = true];
+  optional int32 f5 = 5  [ deprecated = true];
+}
+
+service Greeter {
+  option deprecated = true;
+  rpc Hello (M) returns (M){
+    option idempotency_level = NO_SIDE_EFFECTS;
+  };
+  rpc Hello2 (M) returns (M){
+    option idempotency_level = IDEMPOTENT;
+    option deprecated = false;
+  };
+  rpc Hello3 (M) returns (M){
+    option deprecated = true;
+  };
+}
+
+enum Color {
+  option deprecated = true;
+  UNKNOWN = 0;
+  BLUE = 12 [deprecated = false];
+}
+
