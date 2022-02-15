@@ -27,9 +27,9 @@ func TestFiledescriptorSet(t *testing.T) {
 	files, err := filepath.Glob("testdata/*.proto")
 	// skip test 17 and 18 as we don't interpret custom options yet.
 	skip := map[string]bool{
-		"testdata/17_proto2_custom_options.proto":           true,
-		"testdata/18_a_proto2_aggregate_opt.proto":          true,
-		"testdata/18_b_proto2_aggregate_opt.proto":          true,
+		"testdata/17_proto2_custom_options.proto":  true,
+		"testdata/18_a_proto2_aggregate_opt.proto": true,
+		//"testdata/18_b_proto2_aggregate_opt.proto":          true,
 		"testdata/18_proto2_aggregate_opt_no_include.proto": true,
 	}
 	require.NoError(t, err)

@@ -12,7 +12,6 @@ import (
 	"github.com/alecthomas/protobuf/parser"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 	pb "google.golang.org/protobuf/types/descriptorpb"
@@ -86,11 +85,10 @@ func compileFileDescriptorSets(files, importPaths []string, includeImports bool)
 }
 
 func resolveCustomOptions(all, filtered *pb.FileDescriptorSet) error {
-	files, err := protodesc.NewFiles(all)
+	files, err := NewFiles(all)
 	if err != nil {
 		return err
 	}
-
 	for _, fd := range filtered.File {
 		for _, md := range fd.GetMessageType() {
 			opts := md.GetOptions()
@@ -109,7 +107,11 @@ func resolveCustomOptions(all, filtered *pb.FileDescriptorSet) error {
 				}
 				// TODO: extends for extension fields that are not Messages (e.g. scalars)
 				message := dynamicpb.NewMessage(ed.Message())
-				err = prototext.Unmarshal([]byte(*opt.AggregateValue), message)
+
+				m := prototext.UnmarshalOptions{
+					Resolver: files,
+				}
+				err = m.Unmarshal([]byte(*opt.AggregateValue), message)
 				if err != nil {
 					return err
 				}
