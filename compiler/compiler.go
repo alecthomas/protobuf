@@ -37,7 +37,7 @@ type ast struct {
 	extends  []*parser.Extend
 }
 
-// NewFileDescriptorSet creates a FileDescriptorSet similar to protoc:
+// Compile creates a FileDescriptorSet similar to protoc:
 //
 // 		protoc -o filedescriptorset.pb -I importPath1 -I importPath2 --include_imports file1.proto file2.proto
 //
@@ -45,7 +45,7 @@ type ast struct {
 // of which a proto representation of the source proto files. The
 // FileDescriptorSet is the intermediary representation typically
 // passed to proto plugins.
-func NewFileDescriptorSet(files, importPaths []string, includeImports bool) (*pb.FileDescriptorSet, error) {
+func Compile(files, importPaths []string, includeImports bool) (*pb.FileDescriptorSet, error) {
 	all, filtered, err := compileFileDescriptorSets(files, importPaths, includeImports)
 	if err != nil {
 		return nil, err
