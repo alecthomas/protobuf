@@ -45,7 +45,7 @@ func TestFiledescriptorSet(t *testing.T) {
 				includeImports = false
 			}
 
-			fds, err := NewFileDescriptorSet([]string{fdName}, importPaths, includeImports)
+			fds, err := Compile([]string{fdName}, importPaths, includeImports)
 			require.NoError(t, err)
 			// Deterministic forces maps to be ordered by keys which comes
 			// to bear for option value `{s1: "1"  s2: "2"};`
