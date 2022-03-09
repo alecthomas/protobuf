@@ -25,6 +25,7 @@ func requireProtoEqual(t *testing.T, want, got proto.Message) {
 
 func TestFiledescriptorSet(t *testing.T) {
 	files, err := filepath.Glob("testdata/*.proto")
+	require.NoError(t, err)
 	tmpDir := t.TempDir()
 	// skip test 17 as we don't interpret custom options yet that are scalars.
 	skip := map[string]bool{
