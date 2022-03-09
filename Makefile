@@ -25,10 +25,11 @@ lint:  ## Lint go source code
 .PHONY: lint test
 
 # --- Conformance ------------------------------------------------------
-sync: sync-googleapis  ## Clone and copy conformance protos from GitHub
+sync: sync-googleapis | testdata/conformance/google/protobuf ## Clone and copy conformance protos from GitHub
 	$(eval DEST := $(shell mktemp -d))
 	git clone --depth=1 https://github.com/protocolbuffers/protobuf.git $(DEST)
 	cp $(DEST)/src/google/protobuf/*.proto testdata/conformance
+	cp $(DEST)/src/google/protobuf/*.proto testdata/conformance/google/protobuf
 	cp $(DEST)/conformance/*.proto  testdata/conformance
 	cp $(DEST)/src/google/protobuf/descriptor.proto  compiler/testdata/google/protobuf/descriptor.proto
 	rm -rf $(DEST)
@@ -40,6 +41,9 @@ sync-googleapis:
 	cp $(DEST)/google/api/annotations.proto compiler/testdata/google/api
 	rm -rf $(DEST)
 
+testdata/conformance/google/protobuf:
+	mkdir -p testdata/conformance/google/protobuf
+
 clean::  ## Remove generated files
 	rm -rf testdata/conformance/*
 
@@ -48,14 +52,22 @@ clean::  ## Remove generated files
 # --- Protos -----------------------------------------------------------
 COMPILER_PROTO_FILES = $(wildcard compiler/testdata/*.proto)
 COMPILER_PB_FILES = $(patsubst compiler/testdata/%.proto,compiler/testdata/pb/%.pb,$(COMPILER_PROTO_FILES))
+CONFORMANCE_PROTO_FILES = $(wildcard testdata/conformance/*.proto)
+CONFORMANCE_PB_FILES = $(patsubst testdata/conformance/%.proto,testdata/conformance/pb/%.pb,$(CONFORMANCE_PROTO_FILES))
 
-pb: $(COMPILER_PB_FILES)  ## Generate binary FileDescriptorSet as pb files from compiler/testdata/*.proto
+pb: $(COMPILER_PB_FILES) $(CONFORMANCE_PB_FILES)  ## Generate binary FileDescriptorSet as pb files from compiler/testdata/*.proto
 
 compiler/testdata/pb/%_no_include.pb: compiler/testdata/%_no_include.proto
 	protoc -I compiler/testdata  -o $@ $<
 
 compiler/testdata/pb/%.pb: compiler/testdata/%.proto
 	protoc --include_imports -I compiler/testdata -o $@ $<
+
+testdata/conformance/pb/%.pb: testdata/conformance/%.proto | testdata/conformance/pb
+	protoc --include_imports -I compiler/testdata -I testdata/conformance -o $@ $<
+
+testdata/conformance/pb:
+	mkdir -p testdata/conformance/pb
 
 clean::
 	rm -rf compiler/testdata/pb/*.pb
