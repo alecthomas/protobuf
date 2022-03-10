@@ -8,15 +8,14 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 
 	"github.com/alecthomas/protobuf/parser"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 	pb "google.golang.org/protobuf/types/descriptorpb"
-	"google.golang.org/protobuf/types/dynamicpb"
 )
 
 // ast is a convenience data structure on top of parser.Proto,
@@ -86,45 +85,287 @@ func compileFileDescriptorSets(files, importPaths []string, includeImports bool)
 }
 
 func resolveCustomOptions(all, filtered *pb.FileDescriptorSet) error {
-	files, err := protodesc.NewFiles(all)
+	reg, err := NewRegistry(all)
 	if err != nil {
 		return err
 	}
 
 	for _, fd := range filtered.File {
-		for _, md := range fd.GetMessageType() {
-			opts := md.GetOptions()
-			if opts == nil {
-				continue
-			}
-			for _, opt := range opts.GetUninterpretedOption() {
-				name := fullName(opt.Name)
-				desc, err := files.FindDescriptorByName(name)
-				if err != nil {
-					return err
-				}
-				ed, ok := desc.(protoreflect.ExtensionDescriptor)
-				if !ok {
-					return fmt.Errorf("expected ExtensionDescriptor, got %T :%w", desc, protoregistry.NotFound)
-				}
-				// TODO: extends for extension fields that are not Messages (e.g. scalars)
-				message := dynamicpb.NewMessage(ed.Message())
-				err = prototext.Unmarshal([]byte(*opt.AggregateValue), message)
-				if err != nil {
-					return err
-				}
-				proto.SetExtension(opts, dynamicpb.NewExtensionType(ed), message)
-			}
-			opts.UninterpretedOption = nil
+		if err := resolveFileOptions(reg, fd); err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
-func fullName(names []*pb.UninterpretedOption_NamePart) protoreflect.FullName {
-	// TODO: extend for field references and extensions of extensions.
-	str := protoreflect.FullName((*names[0].NamePart)[1:])
-	return str
+type resolver interface {
+	protoregistry.ExtensionTypeResolver
+	protoregistry.MessageTypeResolver
+}
+
+func resolveFileOptions(r resolver, fd *pb.FileDescriptorProto) error {
+	// TODO: resolve file options
+	for _, md := range fd.GetMessageType() {
+		if err := resolveMessageOptions(r, md); err != nil {
+			return err
+		}
+	}
+	// TODO: resolve enum, service and extension (field) options
+	return nil
+}
+
+func resolveMessageOptions(r resolver, md *pb.DescriptorProto) error {
+	if err := resolveUninterpretedOptions(r, md.GetOptions()); err != nil {
+		return err
+	}
+	// TODO: Resolve field, extension, nested message, enum options, ext range and one-of options
+	return nil
+}
+
+type messageWithOptions interface {
+	proto.Message
+	GetUninterpretedOption() []*pb.UninterpretedOption
+}
+
+func resolveUninterpretedOptions(r resolver, opts messageWithOptions) error {
+	if opts == nil || reflect.ValueOf(opts).IsNil() {
+		return nil
+	}
+
+	for _, opt := range opts.GetUninterpretedOption() {
+		msg, fd := getLastField(opts.ProtoReflect(), opt.GetName(), r)
+		setField(msg, fd, opt, r)
+	}
+
+	// Use reflection to set the UninterpretedOption field to nil
+	v := reflect.ValueOf(opts).Elem().FieldByName("UninterpretedOption")
+	if !v.IsZero() {
+		v.Set(reflect.Zero(v.Type()))
+	}
+
+	return nil
+}
+
+// getLastField returns a message and a field descriptor for the last field
+// for an option value. Options are specified in a .proto file as
+// option field1.(pkg.field2).field3.(field4) = <some-value>. getLastField
+// will return the message of type field3 and a field descriptor for field4
+// so that it can be set <some-value>.
+func getLastField(msg protoreflect.Message, nameparts []*pb.UninterpretedOption_NamePart, r resolver) (protoreflect.Message, protoreflect.FieldDescriptor) {
+	var fd protoreflect.FieldDescriptor
+
+	for i, np := range nameparts {
+		name := protoreflect.Name(np.GetNamePart())
+		if np.GetIsExtension() {
+			name := protoreflect.FullName(np.GetNamePart())
+			et, err := r.FindExtensionByName(name[1:]) // does not like leading "."
+			if err != nil {
+				err := fmt.Errorf("unknown extension in option: %s", name)
+				panic(err)
+			}
+			fd = et.TypeDescriptor()
+		} else {
+			if fd = msg.Descriptor().Fields().ByName(name); fd == nil {
+				err := fmt.Errorf("unknown field name in option: %s", name)
+				panic(err)
+			}
+		}
+		// All but the last namepart must be a message, so get a mutable message
+		// for the field (possibly from a list of messages) for the next level
+		// of iteration.
+		if i != len(nameparts)-1 {
+			v := msg.Mutable(fd)
+			if fd.IsList() {
+				v = v.List().NewElement()
+			}
+			msg = v.Message()
+		}
+	}
+
+	return msg, fd
+}
+
+func setField(msg protoreflect.Message, fd protoreflect.FieldDescriptor, val *pb.UninterpretedOption, r resolver) {
+	var v protoreflect.Value
+	switch fd.Kind() {
+	case protoreflect.BoolKind:
+		v = valueOfBool(val)
+	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind:
+		v = valueOfInt32(val)
+	case protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Sfixed64Kind:
+		v = valueOfInt64(val)
+	case protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
+		v = valueOfUint32(val)
+	case protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
+		v = valueOfUint64(val)
+	case protoreflect.FloatKind:
+		v = valueOfFloat32(val)
+	case protoreflect.DoubleKind:
+		v = valueOfFloat64(val)
+	case protoreflect.StringKind:
+		v = valueOfString(val)
+	case protoreflect.BytesKind:
+		v = valueOfBytes(val)
+	case protoreflect.EnumKind:
+		v = valueOfEnum(val, fd)
+	case protoreflect.MessageKind, protoreflect.GroupKind:
+		mval := msg.NewField(fd)
+		if fd.IsList() {
+			mval = mval.List().NewElement()
+		}
+		v = valueOfMessage(val, mval.Message().Interface(), r)
+	}
+
+	if !v.IsValid() {
+		err := fmt.Errorf("%s: cannot make %s from %s", fd.FullName(), fd.Kind(), val)
+		panic(err)
+	}
+
+	// We don't need to worry about maps as they cannot be extension fields.
+	if fd.IsList() {
+		msg.Mutable(fd).List().Append(v)
+	} else {
+		msg.Set(fd, v)
+	}
+}
+
+func valueOfBool(val *pb.UninterpretedOption) protoreflect.Value {
+	var v bool
+	switch {
+	case val.IdentifierValue != nil && *val.IdentifierValue == "true":
+		v = true
+	case val.IdentifierValue != nil && *val.IdentifierValue == "false":
+		v = false
+	default:
+		return protoreflect.Value{}
+	}
+	return protoreflect.ValueOfBool(v)
+}
+
+func valueOfInt32(val *pb.UninterpretedOption) protoreflect.Value {
+	var v int32
+	switch {
+	case val.PositiveIntValue != nil:
+		v = int32(*val.PositiveIntValue)
+	case val.NegativeIntValue != nil:
+		v = int32(*val.NegativeIntValue)
+	default:
+		return protoreflect.Value{}
+	}
+	return protoreflect.ValueOfInt32(v)
+}
+
+func valueOfInt64(val *pb.UninterpretedOption) protoreflect.Value {
+	var v int64
+	switch {
+	case val.PositiveIntValue != nil:
+		v = int64(*val.PositiveIntValue)
+	case val.NegativeIntValue != nil:
+		v = *val.NegativeIntValue
+	default:
+		return protoreflect.Value{}
+	}
+	return protoreflect.ValueOfInt64(v)
+}
+
+func valueOfUint32(val *pb.UninterpretedOption) protoreflect.Value {
+	var v uint32
+	switch {
+	case val.PositiveIntValue != nil:
+		v = uint32(*val.PositiveIntValue)
+	case val.NegativeIntValue != nil:
+		v = uint32(*val.NegativeIntValue)
+	default:
+		return protoreflect.Value{}
+	}
+	return protoreflect.ValueOfUint32(v)
+}
+
+func valueOfUint64(val *pb.UninterpretedOption) protoreflect.Value {
+	var v uint64
+	switch {
+	case val.PositiveIntValue != nil:
+		v = *val.PositiveIntValue
+	case val.NegativeIntValue != nil:
+		v = uint64(*val.NegativeIntValue)
+	default:
+		return protoreflect.Value{}
+	}
+	return protoreflect.ValueOfUint64(v)
+}
+
+func valueOfFloat32(val *pb.UninterpretedOption) protoreflect.Value {
+	var v float32
+	switch {
+	case val.DoubleValue != nil:
+		v = float32(*val.DoubleValue)
+	case val.PositiveIntValue != nil:
+		v = float32(*val.PositiveIntValue)
+	case val.NegativeIntValue != nil:
+		v = float32(*val.NegativeIntValue)
+	default:
+		return protoreflect.Value{}
+	}
+	return protoreflect.ValueOfFloat32(v)
+}
+
+func valueOfFloat64(val *pb.UninterpretedOption) protoreflect.Value {
+	var v float64
+	switch {
+	case val.DoubleValue != nil:
+		v = *val.DoubleValue
+	case val.PositiveIntValue != nil:
+		v = float64(*val.PositiveIntValue)
+	case val.NegativeIntValue != nil:
+		v = float64(*val.NegativeIntValue)
+	default:
+		return protoreflect.Value{}
+	}
+	return protoreflect.ValueOfFloat64(v)
+}
+
+func valueOfString(val *pb.UninterpretedOption) protoreflect.Value {
+	if val.StringValue == nil {
+		return protoreflect.Value{}
+	}
+	return protoreflect.ValueOfString(string(val.StringValue))
+}
+
+func valueOfBytes(val *pb.UninterpretedOption) protoreflect.Value {
+	if val.StringValue == nil {
+		return protoreflect.Value{}
+	}
+	return protoreflect.ValueOfBytes(val.StringValue)
+}
+
+func valueOfEnum(val *pb.UninterpretedOption, fd protoreflect.FieldDescriptor) protoreflect.Value {
+	var v protoreflect.EnumNumber
+	switch {
+	case val.PositiveIntValue != nil:
+		v = protoreflect.EnumNumber(*val.PositiveIntValue)
+	case val.NegativeIntValue != nil:
+		v = protoreflect.EnumNumber(*val.NegativeIntValue)
+	case val.IdentifierValue != nil:
+		e := fd.Enum().Values().ByName(protoreflect.Name(*val.IdentifierValue))
+		if e == nil {
+			return protoreflect.Value{}
+		}
+		v = e.Number()
+	default:
+		return protoreflect.Value{}
+	}
+	return protoreflect.ValueOfEnum(v)
+}
+
+func valueOfMessage(val *pb.UninterpretedOption, m proto.Message, r resolver) protoreflect.Value {
+	if val.AggregateValue == nil {
+		return protoreflect.Value{}
+	}
+	o := prototext.UnmarshalOptions{Resolver: r}
+	if err := o.Unmarshal([]byte(*val.AggregateValue), m); err != nil {
+		panic(err)
+	}
+	return protoreflect.ValueOfMessage(m.ProtoReflect())
 }
 
 // readProtos creates ASTs for given files and their dependencies in
