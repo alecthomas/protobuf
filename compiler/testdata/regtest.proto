@@ -1,0 +1,50 @@
+syntax = "proto2";
+
+package regtest;
+
+import "google/api/annotations.proto";
+import "google/protobuf/descriptor.proto";
+
+// A base message to be extended
+message BaseMessage {
+  optional string bf1 = 1;
+  extensions 1000 to max;
+}
+
+// A simple top-level extension
+extend BaseMessage {
+  optional string ef1 = 1000;
+}
+
+// A message scope for more extensions
+message ExtensionMessage {
+  optional string emf1 = 1;
+
+  // An extension scoped within a message
+  extend BaseMessage {
+    optional ExtensionMessage ef2 = 1001;
+  };
+
+  message NestedExtension {
+    optional string nef1 = 1;
+
+    // An extension scoped within a nested message
+    extend BaseMessage {
+      optional string ef3 = 1002;
+    };
+  };
+}
+
+// Extend a message outside this package
+extend google.protobuf.MethodOptions {
+  optional BaseMessage base = 56789;
+};
+
+message Empty {}
+
+// A dummy service so that annotations.proto is not reported as unused
+service Dummy {
+  rpc Dummy(Empty) returns (Empty) {
+    option (google.api.http) = { body:"*" };
+  };
+}
