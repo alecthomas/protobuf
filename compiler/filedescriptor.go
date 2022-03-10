@@ -71,6 +71,17 @@ func newFileDescriptor(ast *ast, types *types) *pb.FileDescriptorProto {
 	return b.fileDesc
 }
 
+func newFileOptions(po []*parser.Option) *pb.FileOptions {
+	if len(po) == 0 {
+		return nil
+	}
+	opts := &pb.FileOptions{}
+	for _, o := range po {
+		opts.UninterpretedOption = append(opts.UninterpretedOption, newUninterpretedOption(o))
+	}
+	return opts
+}
+
 func (b *fileDescriptorBuilder) addEntry(e *parser.Entry) {
 	fd := b.fileDesc
 	switch {
@@ -144,9 +155,6 @@ func (b *messageBuilder) buildOption(o *parser.Option) {
 		b.messageDesc.Options = &pb.MessageOptions{}
 	}
 	pbOpt := b.messageDesc.Options
-	if ok := buildDirectMessageOption(o, pbOpt); ok {
-		return
-	}
 	pbOpt.UninterpretedOption = append(pbOpt.UninterpretedOption, newUninterpretedOption(o))
 }
 
@@ -192,35 +200,6 @@ func newUninterpretedOption(o *parser.Option) *pb.UninterpretedOption {
 	return opt
 }
 
-// directMessageOption parses fields in the Original MessageOptions message
-// e.g. "deprecated". It is not concerned with MessageOptions extension,
-func buildDirectMessageOption(o *parser.Option, pbOpt *pb.MessageOptions) bool {
-	if len(o.Name) != 1 {
-		return false
-	}
-	name := o.Name[0].Name
-	if strings.HasPrefix(name, "(") { // extension, skip
-		return false
-	}
-	if o.Value.Bool == nil {
-		panic(fmt.Sprintf("all known message options are bool. For %q got %#v", name, o.Value))
-	}
-	val := bool(*o.Value.Bool)
-	switch name {
-	case "deprecated":
-		pbOpt.Deprecated = &val
-	case "map_entry":
-		pbOpt.MapEntry = &val
-	case "message_set_wire_format":
-		pbOpt.MessageSetWireFormat = &val
-	case "no_standard_descriptor_accessor":
-		pbOpt.NoStandardDescriptorAccessor = &val
-	default:
-		panic(fmt.Sprintf("unknown, non-custom message option %q", name))
-	}
-	return true
-}
-
 func (b *messageBuilder) buildOneof(po *parser.OneOf) {
 	o := &pb.OneofDescriptorProto{
 		Name:    &po.Name,
@@ -240,6 +219,9 @@ func (b *messageBuilder) buildOneof(po *parser.OneOf) {
 			fieldDesc := fdBuilder.createField(e.Field)
 			b.messageDesc.Field = append(b.messageDesc.Field, fieldDesc)
 		case e.Option != nil:
+			if o.Options == nil {
+				o.Options = &pb.OneofOptions{}
+			}
 			o.Options.UninterpretedOption = append(o.Options.UninterpretedOption, newUninterpretedOption(e.Option))
 		default:
 			panic(fmt.Sprintf("%s: cannot interpret OneofEntry", e.Pos))
@@ -412,6 +394,30 @@ func newFieldDescriptorProtoType(t *parser.Type, scope []string, types *types) (
 	panic("unimplemented type, probably map")
 }
 
+func newFieldOptions(field *parser.Field) (*pb.FieldOptions, *string) {
+	if field.Direct == nil || len(field.Direct.Options) == 0 {
+		return nil, nil
+	}
+
+	var defaultValue *string
+	opts := &pb.FieldOptions{}
+	for _, o := range field.Direct.Options {
+		// The "default" option for a field is handled differently than
+		// other options - DefaultValue is a field in the FieldDescriptor
+		if o.Name[0].Name == "default" {
+			dv := o.Value.ToString()
+			defaultValue = &dv
+			continue
+		}
+		opts.UninterpretedOption = append(opts.UninterpretedOption, newUninterpretedOption(o))
+	}
+
+	if len(opts.UninterpretedOption) == 0 {
+		return nil, defaultValue
+	}
+	return opts, defaultValue
+}
+
 func newMapEntry(f *parser.Field, scope []string, types *types) *pb.DescriptorProto {
 	keyField := MapEntryField("key", 1, f.Direct.Type.Map.Key, scope, types)
 	valueField := MapEntryField("value", 2, f.Direct.Type.Map.Value, scope, types)
@@ -532,13 +538,20 @@ func newMethod(m *parser.Method, scope []string, types *types) *pb.MethodDescrip
 	return md
 }
 
+func newMethodOptions(po []*parser.Option) *pb.MethodOptions {
+	if len(po) == 0 {
+		return nil
+	}
+	opts := &pb.MethodOptions{}
+	for _, o := range po {
+		opts.UninterpretedOption = append(opts.UninterpretedOption, newUninterpretedOption(o))
+	}
+	return opts
+}
+
 func buildServiceOption(sd *pb.ServiceDescriptorProto, o *parser.Option) {
 	if sd.Options == nil {
 		sd.Options = &pb.ServiceOptions{}
-	}
-	if len(o.Name) == 1 && o.Name[0].Name == "deprecated" {
-		sd.Options.Deprecated = (*bool)(o.Value.Bool)
-		return
 	}
 	sd.Options.UninterpretedOption = append(sd.Options.UninterpretedOption, newUninterpretedOption(o))
 }
@@ -564,19 +577,14 @@ func buildEnumOption(ed *pb.EnumDescriptorProto, o *parser.Option) {
 	if ed.Options == nil {
 		ed.Options = &pb.EnumOptions{}
 	}
-	if len(o.Name) != 1 {
-		ed.Options.UninterpretedOption = append(ed.Options.UninterpretedOption, newUninterpretedOption(o))
+	// allow_alias needs to be interpreted now as the uninterpreted option
+	// unmarshaling needs to know if aliases on enums are allowed, otherwise
+	// it will generate an error for aliases as allow_alias gets set too late.
+	if len(o.Name) == 1 && o.Name[0].Name == "allow_alias" {
+		ed.Options.AllowAlias = (*bool)(o.Value.Bool)
 		return
 	}
-	name := o.Name[0].Name
-	switch name {
-	case "allow_alias":
-		ed.Options.AllowAlias = (*bool)(o.Value.Bool)
-	case "deprecated":
-		ed.Options.Deprecated = (*bool)(o.Value.Bool)
-	default:
-		ed.Options.UninterpretedOption = append(ed.Options.UninterpretedOption, newUninterpretedOption(o))
-	}
+	ed.Options.UninterpretedOption = append(ed.Options.UninterpretedOption, newUninterpretedOption(o))
 }
 
 func newEnumValue(e *parser.EnumValue) *pb.EnumValueDescriptorProto {
@@ -588,10 +596,6 @@ func newEnumValue(e *parser.EnumValue) *pb.EnumValueDescriptorProto {
 	if len(e.Options) != 0 {
 		ed.Options = &pb.EnumValueOptions{}
 		for _, o := range e.Options {
-			if len(o.Name) == 1 && o.Name[0].Name == "deprecated" {
-				ed.Options.Deprecated = (*bool)(o.Value.Bool)
-				continue
-			}
 			ed.Options.UninterpretedOption = append(ed.Options.UninterpretedOption, newUninterpretedOption(o))
 		}
 	}

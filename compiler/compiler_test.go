@@ -86,7 +86,7 @@ func TestUninterpretedOptions(t *testing.T) {
 	message := fd.MessageType[1]
 	require.Equal(t, "User", message.GetName())
 	uOpts := message.Options.UninterpretedOption
-	require.Equal(t, 6, len(uOpts))
+	require.Equal(t, 7, len(uOpts))
 
 	// option (.pkg.opt1).s1 = "opt1-s1";
 	require.Equal(t, 2, len(uOpts[0].Name))
