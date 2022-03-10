@@ -7,3 +7,13 @@ syntax = "proto2";
 message Test {
   repeated string s = 1;
 }
+
+option (foo) = {
+  // Comment before field
+  f1: "foo"
+  /* multi-line
+   * comment
+   */
+  f2: "bar"
+  // trailing comment
+}

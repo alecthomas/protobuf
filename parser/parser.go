@@ -91,6 +91,8 @@ type ProtoText struct {
 	Pos lexer.Position
 
 	Fields []*ProtoTextField `( @@ ( "," | ";" )? )*`
+
+	TrailingComments *Comments `@@?`
 }
 
 type ProtoTextField struct {
