@@ -3,6 +3,8 @@ package compiler
 import (
 	"fmt"
 	"math"
+	"math/big"
+	"strconv"
 	"strings"
 
 	"github.com/alecthomas/protobuf/parser"
@@ -161,9 +163,31 @@ func newUninterpretedOption(o *parser.Option) *pb.UninterpretedOption {
 		o := &pb.UninterpretedOption_NamePart{NamePart: &name, IsExtension: &isExtension}
 		opt.Name = append(opt.Name, o)
 	}
-	if o.Value.ProtoText != nil {
-		str := o.Value.ProtoText.String()
-		opt.AggregateValue = &str
+	switch {
+	case o.Value.String != nil:
+		opt.StringValue = []byte(*o.Value.String)
+	case o.Value.Number != nil && o.Value.Number.IsInt():
+		if v, accuracy := o.Value.Number.Uint64(); accuracy == big.Exact {
+			opt.PositiveIntValue = &v
+		} else if v, accuracy := o.Value.Number.Int64(); accuracy == big.Exact {
+			opt.NegativeIntValue = &v
+		} else {
+			panic(fmt.Sprintf("value to large for (u)int64: %v", *o.Value.Number))
+		}
+	case o.Value.Number != nil && !o.Value.Number.IsInt():
+		v, _ := o.Value.Number.Float64()
+		opt.DoubleValue = &v
+	case o.Value.Bool != nil:
+		v := strconv.FormatBool(bool(*o.Value.Bool))
+		opt.IdentifierValue = &v
+	case o.Value.Reference != nil:
+		opt.IdentifierValue = o.Value.Reference
+	case o.Value.ProtoText != nil:
+		v := o.Value.ProtoText.String()
+		opt.AggregateValue = &v
+	default:
+		// This includes o.Value.Array which does not appear to be valid.
+		panic(fmt.Sprintf("Unknown option value form: %#v", o.Value))
 	}
 	return opt
 }
