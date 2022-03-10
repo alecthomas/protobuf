@@ -104,13 +104,29 @@ type resolver interface {
 }
 
 func resolveFileOptions(r resolver, fd *pb.FileDescriptorProto) error {
-	// TODO: resolve file options
+	if err := resolveUninterpretedOptions(r, fd.GetOptions()); err != nil {
+		return err
+	}
 	for _, md := range fd.GetMessageType() {
 		if err := resolveMessageOptions(r, md); err != nil {
 			return err
 		}
 	}
-	// TODO: resolve enum, service and extension (field) options
+	for _, ed := range fd.GetEnumType() {
+		if err := resolveEnumOptions(r, ed); err != nil {
+			return err
+		}
+	}
+	for _, sd := range fd.GetService() {
+		if err := resolveServiceOptions(r, sd); err != nil {
+			return err
+		}
+	}
+	for _, fd := range fd.GetExtension() {
+		if err := resolveUninterpretedOptions(r, fd.GetOptions()); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -118,7 +134,60 @@ func resolveMessageOptions(r resolver, md *pb.DescriptorProto) error {
 	if err := resolveUninterpretedOptions(r, md.GetOptions()); err != nil {
 		return err
 	}
-	// TODO: Resolve field, extension, nested message, enum options, ext range and one-of options
+	for _, fd := range md.GetField() {
+		if err := resolveUninterpretedOptions(r, fd.GetOptions()); err != nil {
+			return err
+		}
+	}
+	for _, fd := range md.GetExtension() {
+		if err := resolveUninterpretedOptions(r, fd.GetOptions()); err != nil {
+			return err
+		}
+	}
+	for _, nestedMD := range md.GetNestedType() {
+		if err := resolveMessageOptions(r, nestedMD); err != nil {
+			return err
+		}
+	}
+	for _, ed := range md.GetEnumType() {
+		if err := resolveEnumOptions(r, ed); err != nil {
+			return err
+		}
+	}
+	for _, erd := range md.GetExtensionRange() {
+		if err := resolveUninterpretedOptions(r, erd.GetOptions()); err != nil {
+			return err
+		}
+	}
+	for _, od := range md.GetOneofDecl() {
+		if err := resolveUninterpretedOptions(r, od.GetOptions()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func resolveEnumOptions(r resolver, ed *pb.EnumDescriptorProto) error {
+	if err := resolveUninterpretedOptions(r, ed.GetOptions()); err != nil {
+		return err
+	}
+	for _, evd := range ed.GetValue() {
+		if err := resolveUninterpretedOptions(r, evd.GetOptions()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func resolveServiceOptions(r resolver, sd *pb.ServiceDescriptorProto) error {
+	if err := resolveUninterpretedOptions(r, sd.GetOptions()); err != nil {
+		return err
+	}
+	for _, md := range sd.GetMethod() {
+		if err := resolveUninterpretedOptions(r, md.GetOptions()); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
