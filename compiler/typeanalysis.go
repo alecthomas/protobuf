@@ -34,12 +34,14 @@ import (
 //     types.fullName("Egg2", {"pkg1.pkg2", "Nest"}): .pkg1.pkg2.Egg2
 //
 // types.fullName returns an empty string if no type can be found.
-type types map[string]pb.FieldDescriptorProto_Type
+type types struct {
+	types map[string]pb.FieldDescriptorProto_Type
+}
 
-func (t types) fullName(typeName string, scope []string) (string, pb.FieldDescriptorProto_Type) {
+func (t *types) fullName(typeName string, scope []string) (string, pb.FieldDescriptorProto_Type) {
 	if strings.HasPrefix(typeName, ".") {
-		if t[typeName] != 0 {
-			return typeName, t[typeName]
+		if t.types[typeName] != 0 {
+			return typeName, t.types[typeName]
 		}
 		panic(fmt.Sprintf("typeanalysis: not found: %s, %v", typeName, scope))
 	}
@@ -48,30 +50,32 @@ func (t types) fullName(typeName string, scope []string) (string, pb.FieldDescri
 		copy(parts, scope[:i])
 		parts[i] = typeName
 		name := "." + strings.Join(parts, ".")
-		if t[name] != 0 {
-			return name, t[name]
+		if t.types[name] != 0 {
+			return name, t.types[name]
 		}
 	}
 	panic(fmt.Sprintf("typeanalysis: not found: %s, %v, %v", typeName, scope, t))
 }
 
-func (t types) addName(relTypeName string, pbType pb.FieldDescriptorProto_Type, scope []string) {
+func (t *types) addName(relTypeName string, pbType pb.FieldDescriptorProto_Type, scope []string) {
 	parts := make([]string, len(scope)+1)
 	copy(parts, scope)
 	parts[len(parts)-1] = relTypeName
 	name := "." + strings.Join(parts, ".")
-	t[name] = pbType
+	t.types[name] = pbType
 }
 
-func newTypes(asts []*ast) types {
-	t := types{}
+func newTypes(asts []*ast) *types {
+	t := &types{
+		types: map[string]pb.FieldDescriptorProto_Type{},
+	}
 	for _, ast := range asts {
 		analyseTypes(ast, t)
 	}
 	return t
 }
 
-func analyseTypes(ast *ast, t types) {
+func analyseTypes(ast *ast, t *types) {
 	scope := []string{}
 	if ast.pkg != "" {
 		scope = append(scope, ast.pkg)
@@ -88,21 +92,21 @@ func analyseTypes(ast *ast, t types) {
 	}
 }
 
-func analyseMessage(m *parser.Message, scope []string, t types) {
+func analyseMessage(m *parser.Message, scope []string, t *types) {
 	name := m.Name
 	t.addName(name, pb.FieldDescriptorProto_TYPE_MESSAGE, scope)
 	scope = append(scope, name)
 	analyseMessageEntries(m.Entries, scope, t)
 }
 
-func analyseGroup(g *parser.Group, scope []string, t types) {
+func analyseGroup(g *parser.Group, scope []string, t *types) {
 	name := g.Name
 	t.addName(name, pb.FieldDescriptorProto_TYPE_GROUP, scope)
 	scope = append(scope, name)
 	analyseMessageEntries(g.Entries, scope, t)
 }
 
-func analyseExtend(e *parser.Extend, scope []string, t types) {
+func analyseExtend(e *parser.Extend, scope []string, t *types) {
 	for _, f := range e.Fields {
 		if f.Group != nil {
 			analyseGroup(f.Group, scope, t)
@@ -110,7 +114,7 @@ func analyseExtend(e *parser.Extend, scope []string, t types) {
 	}
 }
 
-func analyseField(f *parser.Field, scope []string, t types) {
+func analyseField(f *parser.Field, scope []string, t *types) {
 	if f.Group != nil {
 		analyseGroup(f.Group, scope, t)
 		return
@@ -121,7 +125,7 @@ func analyseField(f *parser.Field, scope []string, t types) {
 	}
 }
 
-func analyseMessageEntries(messageEntries []*parser.MessageEntry, scope []string, t types) {
+func analyseMessageEntries(messageEntries []*parser.MessageEntry, scope []string, t *types) {
 	for _, me := range messageEntries {
 		switch {
 		case me.Message != nil:
