@@ -340,8 +340,12 @@ func (p *ProtoText) String() string {
 	indent := "  "
 	b.WriteString("\n")
 	for _, f := range p.Fields {
+		typ := f.Type
+		if typ != "" {
+			typ = "[" + typ + "]"
+		}
 		val := f.Value.indentString(indent)
-		fmt.Fprintf(&b, "%s%s%s: %s\n", indent, f.Name, f.Type, val)
+		fmt.Fprintf(&b, "%s%s%s: %s\n", indent, f.Name, typ, val)
 	}
 	return b.String()
 }
@@ -351,8 +355,12 @@ func (p *ProtoText) indentString(indent string) string {
 	b.WriteString("{\n")
 	for _, f := range p.Fields {
 		indent2 := indent + "  "
+		typ := f.Type
+		if typ != "" {
+			typ = "[" + typ + "]"
+		}
 		val := f.Value.indentString(indent2)
-		fmt.Fprintf(&b, "%s%s%s: %s\n", indent2, f.Name, f.Type, val)
+		fmt.Fprintf(&b, "%s%s%s: %s\n", indent2, f.Name, typ, val)
 	}
 	b.WriteString(indent + "}")
 	return b.String()

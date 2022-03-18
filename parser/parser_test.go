@@ -119,14 +119,16 @@ func TestProtoTextString(t *testing.T) {
 				{Type: "aNum", Value: &Value{Number: toBig(12)}},
 				{Name: "nest", Value: &Value{ProtoText: &ProtoText{Fields: []*ProtoTextField{
 					{Name: "egg", Value: &Value{String: strP("chick")}},
+					{Type: "ext", Value: &Value{String: strP("penguin")}},
 				}}}},
 			},
 		}},
 		want: `{
     aString: "abc"
-    aNum: 12
+    [aNum]: 12
     nest: {
       egg: "chick"
+      [ext]: "penguin"
     }
   }`,
 	}}
