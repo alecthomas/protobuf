@@ -17,7 +17,6 @@ import (
 func TestFiledescriptorSetConformance(t *testing.T) {
 	files, err := filepath.Glob("testdata/conformance/*.proto")
 	require.NoError(t, err)
-	tmpDir := t.TempDir()
 	// skip test 15 out of 47 conformance tests:
 	//    5 deprecated
 	//    10 with compiler issues to be fixed
@@ -32,13 +31,10 @@ func TestFiledescriptorSetConformance(t *testing.T) {
 		"testdata/conformance/map_unittest.proto":                 true, // groups panic
 		"testdata/conformance/test_messages_proto2.proto":         true, // has invalid default: could not parse value for int64: "-9.123456789e+18"
 		"testdata/conformance/unittest.proto":                     true, // groups panic
-		"testdata/conformance/unittest_custom_options.proto":      true, // panic
 		"testdata/conformance/unittest_embed_optimize_for.proto":  true, // panic
 		"testdata/conformance/unittest_enormous_descriptor.proto": true, // not equal
-		"testdata/conformance/unittest_lazy_dependencies.proto":   true, // not equal
 		"testdata/conformance/unittest_no_field_presence.proto":   true, // panic
 		"testdata/conformance/unittest_optimize_for.proto":        true, // panic
-		"testdata/conformance/unittest_proto3_optional.proto":     true, // not equal
 	}
 	require.NoError(t, err)
 	for _, file := range files {
@@ -52,19 +48,9 @@ func TestFiledescriptorSetConformance(t *testing.T) {
 			includeImports := true
 			name := strings.TrimSuffix(fdName, ".proto")
 
-			fds, err := compiler.Compile([]string{fdName}, importPaths, includeImports)
+			got, err := compiler.Compile([]string{fdName}, importPaths, includeImports)
 			require.NoError(t, err)
-			// Deterministic forces maps to be ordered by keys which comes
-			// to bear for option value `{s1: "1"  s2: "2"};`
-			m := proto.MarshalOptions{Deterministic: true}
-			b, err := m.Marshal(fds)
-			require.NoError(t, err)
-			gotFile := filepath.Join(tmpDir, name+".pb")
-			require.NoError(t, os.WriteFile(gotFile, b, 0600))
-
-			wantFile := "testdata/conformance/pb/" + name + ".pb"
-			want := loadPB(t, wantFile)
-			got := loadPB(t, gotFile)
+			want := loadPB(t, "testdata/conformance/pb/"+name+".pb")
 			require.Equal(t, len(got.File), len(want.File))
 			requireProtoEqual(t, want, got)
 		})
@@ -87,6 +73,17 @@ func loadPB(t *testing.T, file string) *pb.FileDescriptorSet {
 	require.NoError(t, err)
 	fds := &pb.FileDescriptorSet{}
 	err = proto.Unmarshal(pbBytes, fds)
+	require.NoError(t, err)
+
+	// Unmarshal again using the fds we just created as a resolver registry
+	// so that extensions can be resolved properly. Without this, the
+	// extension fields appear as RawFields which can have different
+	// representations of the same field due to ordering, and then they
+	// dont compare as equal when they semantically are. Properly resolving
+	// extensions makes the comparison work.
+	reg, err := compiler.NewRegistry(fds)
+	require.NoError(t, err)
+	err = proto.UnmarshalOptions{Resolver: reg}.Unmarshal(pbBytes, fds)
 	require.NoError(t, err)
 	return fds
 }

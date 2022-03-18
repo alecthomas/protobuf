@@ -28,6 +28,7 @@ lint:  ## Lint go source code
 sync: sync-googleapis | testdata/conformance/google/protobuf ## Clone and copy conformance protos from GitHub
 	$(eval DEST := $(shell mktemp -d))
 	git clone --depth=1 https://github.com/protocolbuffers/protobuf.git $(DEST)
+	for patch in testdata/patches/*.patch; do patch -d $(DEST) -p1 < $${patch}; done
 	cp $(DEST)/src/google/protobuf/*.proto testdata/conformance
 	cp $(DEST)/src/google/protobuf/*.proto testdata/conformance/google/protobuf
 	cp $(DEST)/conformance/*.proto  testdata/conformance
