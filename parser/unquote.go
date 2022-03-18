@@ -73,6 +73,7 @@ func unquote(token lexer.Token) (lexer.Token, error) {
 				if err := flushDigits(digits, 16, &out); err != nil {
 					return token, fmt.Errorf("%s: %w", token.Pos, err)
 				}
+				out.WriteRune(rn)
 				state = uqDefault
 				digits = ""
 			}
@@ -83,6 +84,7 @@ func unquote(token lexer.Token) (lexer.Token, error) {
 				if err := flushDigits(digits, 8, &out); err != nil {
 					return token, fmt.Errorf("%s: %w", token.Pos, err)
 				}
+				out.WriteRune(rn)
 				state = uqDefault
 				digits = ""
 			}
