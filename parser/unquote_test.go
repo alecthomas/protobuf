@@ -16,6 +16,8 @@ func TestUnquote(t *testing.T) {
 		{`"\?"`, "\x3f"},
 		{`'\n\027'`, `\n\027`},
 		{`"\n\x17"`, "\n\027"},
+		{`"hello\0world"`, "hello\000world"},
+		{`"hello\x0world"`, "hello\000world"},
 	}
 	for _, test := range tests {
 		actual, err := unquote(lexer.Token{Value: test.input})
