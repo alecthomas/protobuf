@@ -35,39 +35,70 @@ import (
 //
 // types.fullName returns an empty string if no type can be found.
 type types struct {
-	types map[string]pb.FieldDescriptorProto_Type
+	types      map[string]pb.FieldDescriptorProto_Type
+	extensions map[string]bool
 }
 
 func (t *types) fullName(typeName string, scope []string) (string, pb.FieldDescriptorProto_Type) {
 	if strings.HasPrefix(typeName, ".") {
-		if t.types[typeName] != 0 {
-			return typeName, t.types[typeName]
+		if pbType, ok := t.types[typeName]; ok {
+			return typeName, pbType
 		}
 		panic(fmt.Sprintf("typeanalysis: not found: %s, %v", typeName, scope))
 	}
 	for i := len(scope); i >= 0; i-- {
-		parts := make([]string, i+1)
-		copy(parts, scope[:i])
-		parts[i] = typeName
-		name := "." + strings.Join(parts, ".")
-		if t.types[name] != 0 {
-			return name, t.types[name]
+		sn := scopedName(typeName, scope[:i])
+		if pbType, ok := t.types[sn]; ok {
+			return sn, pbType
 		}
 	}
 	panic(fmt.Sprintf("typeanalysis: not found: %s, %v, %v", typeName, scope, t))
 }
 
+func (t *types) extensionName(name string, scope []string) string {
+	if strings.HasPrefix(name, ".") {
+		if t.extensions[name] {
+			return name
+		}
+		panic(fmt.Sprintf("typeanalysis: not found: %s, %v", name, scope))
+	}
+	for i := len(scope); i >= 0; i-- {
+		sn := scopedName(name, scope[:i])
+		if t.extensions[sn] {
+			return sn
+		}
+	}
+	panic(fmt.Sprintf("typeanalysis: not found: %s, %v", name, scope))
+}
+
 func (t *types) addName(relTypeName string, pbType pb.FieldDescriptorProto_Type, scope []string) {
-	parts := make([]string, len(scope)+1)
-	copy(parts, scope)
-	parts[len(parts)-1] = relTypeName
-	name := "." + strings.Join(parts, ".")
-	t.types[name] = pbType
+	sn := scopedName(relTypeName, scope)
+	if _, ok := t.types[sn]; ok {
+		panic(fmt.Sprintf("typeanalysis: duplicate type name: %s", sn))
+	}
+	t.types[sn] = pbType
+}
+
+func (t *types) addExtension(relName string, scope []string) {
+	sn := scopedName(relName, scope)
+	if _, ok := t.extensions[sn]; ok {
+		panic(fmt.Sprintf("typeanalysis: duplicate extension: %s", sn))
+	}
+	t.extensions[sn] = true
+}
+
+func scopedName(name string, scope []string) string {
+	sn := strings.Join(scope, ".") + "." + name
+	if len(scope) > 0 {
+		sn = "." + sn
+	}
+	return sn
 }
 
 func newTypes(asts []*ast) *types {
 	t := &types{
-		types: map[string]pb.FieldDescriptorProto_Type{},
+		types:      map[string]pb.FieldDescriptorProto_Type{},
+		extensions: map[string]bool{},
 	}
 	for _, ast := range asts {
 		analyseTypes(ast, t)
@@ -110,6 +141,9 @@ func analyseExtend(e *parser.Extend, scope []string, t *types) {
 	for _, f := range e.Fields {
 		if f.Group != nil {
 			analyseGroup(f.Group, scope, t)
+			t.addExtension(strings.ToLower(f.Group.Name), scope)
+		} else if f.Direct != nil {
+			t.addExtension(f.Direct.Name, scope)
 		}
 	}
 }
