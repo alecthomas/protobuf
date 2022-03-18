@@ -9,6 +9,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/testing/protocmp"
 	pb "google.golang.org/protobuf/types/descriptorpb"
 )
@@ -26,16 +27,7 @@ func requireProtoEqual(t *testing.T, want, got proto.Message) {
 func TestFiledescriptorSet(t *testing.T) {
 	files, err := filepath.Glob("testdata/*.proto")
 	require.NoError(t, err)
-	tmpDir := t.TempDir()
-	// skip test 17 as we don't interpret custom options yet that are scalars.
-	skip := map[string]bool{
-		"testdata/17_proto2_custom_options.proto": true,
-	}
-	require.NoError(t, err)
 	for _, file := range files {
-		if skip[file] {
-			continue
-		}
 		t.Run(file, func(t *testing.T) {
 			fdName := strings.TrimPrefix(file, "testdata/")
 			importPaths := []string{"testdata"}
@@ -46,19 +38,9 @@ func TestFiledescriptorSet(t *testing.T) {
 				includeImports = false
 			}
 
-			fds, err := Compile([]string{fdName}, importPaths, includeImports)
+			got, err := Compile([]string{fdName}, importPaths, includeImports)
 			require.NoError(t, err)
-			// Deterministic forces maps to be ordered by keys which comes
-			// to bear for option value `{s1: "1"  s2: "2"};`
-			m := proto.MarshalOptions{Deterministic: true}
-			b, err := m.Marshal(fds)
-			require.NoError(t, err)
-			gotFile := filepath.Join(tmpDir, name+".pb")
-			require.NoError(t, os.WriteFile(gotFile, b, 0600))
-
-			wantFile := "testdata/pb/" + name + ".pb"
-			want := loadPB(t, wantFile)
-			got := loadPB(t, gotFile)
+			want := loadPB(t, "testdata/pb/"+name+".pb")
 			require.Equal(t, len(got.File), len(want.File))
 			requireProtoEqual(t, want, got)
 		})
@@ -71,6 +53,20 @@ func loadPB(t *testing.T, file string) *pb.FileDescriptorSet {
 	require.NoError(t, err)
 	fds := &pb.FileDescriptorSet{}
 	err = proto.Unmarshal(pbBytes, fds)
+	require.NoError(t, err)
+
+	// Unmarshal again using the fds we just created as a resolver registry
+	// so that extensions can be resolved properly. Without this, the
+	// extension fields appear as RawFields which can have different
+	// representations of the same field due to ordering, and then they
+	// dont compare as equal when they semantically are. Properly resolving
+	// extensions makes the comparison work.
+	// We need to AllowUnresolvable as the _no_include pb files will not
+	// load without it as it cannot resolve the imports.
+	f, err := protodesc.FileOptions{AllowUnresolvable: true}.NewFiles(fds)
+	require.NoError(t, err)
+	reg := &Registry{Files: *f}
+	err = proto.UnmarshalOptions{Resolver: reg}.Unmarshal(pbBytes, fds)
 	require.NoError(t, err)
 	return fds
 }
