@@ -67,7 +67,7 @@ type Option struct {
 type OptionName struct {
 	Pos lexer.Position
 
-	Name string `( @("."? "(" ("."? Ident { "." Ident }) ")") | @("."? Ident { "." Ident }) ) "."?`
+	Name string `( @("."? "(" ("."? Ident { "." Ident }) ")") | @Ident ) "."?`
 }
 
 func (o *OptionName) children() []Node { return nil }

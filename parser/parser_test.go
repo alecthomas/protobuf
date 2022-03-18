@@ -39,6 +39,7 @@ func TestParser(t *testing.T) {
 			  option (complex_opt2).bar.(protobuf_unittest.corge).qux = 2008;
 			  option (complex_opt2).(protobuf_unittest.garply).(corge).qux = 2121;
 			  option (.ComplexOptionType2.ComplexOptionType4.complex_opt4).waldo = 1971;
+			  option (complex_opt2).foo.bar.(baz).qux = 1980;
 			  option (strings) = "1" "2";
 			  option deprecated = true;
 			  option deprecated = false;
@@ -60,6 +61,10 @@ func TestParser(t *testing.T) {
 						{Option: &Option{
 							Name:  []*OptionName{{Name: "(.ComplexOptionType2.ComplexOptionType4.complex_opt4)"}, {Name: "waldo"}},
 							Value: &Value{Number: toBig(1971)},
+						}},
+						{Option: &Option{
+							Name:  []*OptionName{{Name: "(complex_opt2)"}, {Name: "foo"}, {Name: "bar"}, {Name: "(baz)"}, {Name: "qux"}},
+							Value: &Value{Number: toBig(1980)},
 						}},
 						{Option: &Option{
 							Name:  []*OptionName{{Name: "(strings)"}},
