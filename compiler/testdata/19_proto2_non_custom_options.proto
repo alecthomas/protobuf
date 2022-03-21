@@ -37,6 +37,9 @@ message M {
   optional int32 f5 = 5  [ deprecated = true];
   optional int32 f6 = 6  [ default = 42];
   optional int32 f7 = 7  [ default = 13, deprecated = true];
+  optional group SubGroup = 8 [ deprecated = true] {
+    optional int32 sgf1 = 1;
+  }
 }
 
 service Greeter {

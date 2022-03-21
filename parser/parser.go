@@ -265,6 +265,7 @@ type Group struct {
 
 	Name    string          `"group" @Ident`
 	Tag     int             `"=" @Int`
+	Options Options         `[ "[" @@ { "," @@ } "]" ]`
 	Entries []*MessageEntry `"{" { @@ [ ";" ] } "}"`
 }
 
