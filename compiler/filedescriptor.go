@@ -491,7 +491,7 @@ func jsonStr(s string) *string {
 	ss := strings.Split(s, "_")
 	result := ss[0]
 	for _, s := range ss[1:] {
-		result += strings.Title(s)
+		result += strings.Title(s) //nolint:staticcheck // s is ascii not utf8
 	}
 	return &result
 }
@@ -500,7 +500,7 @@ func mapTypeStr(s string) string {
 	ss := strings.Split(s, "_")
 	result := ""
 	for _, s := range ss {
-		result += strings.Title(s)
+		result += strings.Title(s) //nolint:staticcheck // s is ascii not utf8
 	}
 	return result + "Entry"
 }
