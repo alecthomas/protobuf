@@ -401,13 +401,19 @@ func newFieldDescriptorProtoType(t *parser.Type, scope []string, types *types) (
 }
 
 func newFieldOptions(field *parser.Field, scope []string, types *types) (*pb.FieldOptions, *string) {
-	if field.Direct == nil || len(field.Direct.Options) == 0 {
+	var options parser.Options
+	if field.Direct != nil && len(field.Direct.Options) > 0 {
+		options = field.Direct.Options
+	} else if field.Group != nil && len(field.Group.Options) > 0 {
+		options = field.Group.Options
+	}
+	if len(options) == 0 {
 		return nil, nil
 	}
 
 	var defaultValue *string
 	opts := &pb.FieldOptions{}
-	for _, o := range field.Direct.Options {
+	for _, o := range options {
 		// The "default" option for a field is handled differently than
 		// other options - DefaultValue is a field in the FieldDescriptor
 		if o.Name[0].Name == "default" {
