@@ -1,0 +1,60 @@
+diff --git a/src/google/protobuf/test_messages_proto2.proto b/src/google/protobuf/test_messages_proto2.proto
+index c7b9c487a..86b04fc65 100644
+--- a/src/google/protobuf/test_messages_proto2.proto
++++ b/src/google/protobuf/test_messages_proto2.proto
+@@ -237,7 +237,9 @@ message TestAllTypesProto2 {
+ 
+   // message_set test case.
+   message MessageSetCorrect {
+-    option message_set_wire_format = true;
++    // MessageSets are not supported by the Go protobuf implemetation.
++    // We could build with `-tags protolegacy`, but we dont need this.
++    // option message_set_wire_format = true;
+ 
+     extensions 4 to max;
+   }
+diff --git a/src/google/protobuf/unittest_custom_options.proto b/src/google/protobuf/unittest_custom_options.proto
+index 1812d71ee..9a2b57ae2 100644
+--- a/src/google/protobuf/unittest_custom_options.proto
++++ b/src/google/protobuf/unittest_custom_options.proto
+@@ -304,7 +304,9 @@ message VariousComplexOptions {
+ // See descriptor_unittest.cc.
+ 
+ message AggregateMessageSet {
+-  option message_set_wire_format = true;
++  // MessageSets are not supported by the Go protobuf implemetation.
++  // We could build with `-tags protolegacy`, but we dont need this.
++  // option message_set_wire_format = true;
+ 
+   extensions 4 to max;
+ }
+diff --git a/src/google/protobuf/unittest_lite.proto b/src/google/protobuf/unittest_lite.proto
+index e2730acdb..bf8163102 100644
+--- a/src/google/protobuf/unittest_lite.proto
++++ b/src/google/protobuf/unittest_lite.proto
+@@ -470,7 +470,9 @@ message TestOneofParsingLite {
+ }
+ 
+ message TestMessageSetLite {
+-  option message_set_wire_format = true;
++  // MessageSets are not supported by the Go protobuf implemetation.
++  // We could build with `-tags protolegacy`, but we dont need this.
++  // option message_set_wire_format = true;
+ 
+   extensions 100 to max;
+ }
+diff --git a/src/google/protobuf/unittest_mset_wire_format.proto b/src/google/protobuf/unittest_mset_wire_format.proto
+index 04e4352e0..9d628fe7b 100644
+--- a/src/google/protobuf/unittest_mset_wire_format.proto
++++ b/src/google/protobuf/unittest_mset_wire_format.proto
+@@ -43,7 +43,9 @@ option csharp_namespace = "Google.ProtocolBuffers.TestProtos";
+ 
+ // A message with message_set_wire_format.
+ message TestMessageSet {
+-  option message_set_wire_format = true;
++  // MessageSets are not supported by the Go protobuf implemetation.
++  // We could build with `-tags protolegacy`, but we dont need this.
++  // option message_set_wire_format = true;
+   extensions 4 to max;
+ }
+ 
