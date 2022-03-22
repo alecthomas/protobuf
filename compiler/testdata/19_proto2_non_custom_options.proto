@@ -26,6 +26,10 @@ option deprecated = true;
 option cc_enable_arenas = true;
 option optimize_for = CODE_SIZE;
 
+extend google.protobuf.ExtensionRangeOptions {
+  optional bool custom = 1000;
+}
+
 message M {
   message Sub {
     optional int64 sub = 1;
@@ -40,6 +44,7 @@ message M {
   optional group SubGroup = 8 [ deprecated = true] {
     optional int32 sgf1 = 1;
   }
+  extensions 100, 105 to 109 [(custom) = true];
 }
 
 service Greeter {

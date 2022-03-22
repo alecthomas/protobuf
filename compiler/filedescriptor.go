@@ -246,12 +246,13 @@ func newMessageRanges(pr *parser.Reserved) []*pb.DescriptorProto_ReservedRange {
 
 func newExtensionRanges(er *parser.Extensions, scope []string, types *types) []*pb.DescriptorProto_ExtensionRange {
 	extensionRanges := make([]*pb.DescriptorProto_ExtensionRange, 0, len(er.Extensions))
+	ero := newExtensionRangeOptions(er.Options, scope, types)
 	for _, r := range er.Extensions {
 		start, end := reservedRange(r)
 		rr := &pb.DescriptorProto_ExtensionRange{
 			Start:   &start,
 			End:     &end,
-			Options: newExtensionRangeOptions(r.Options, scope, types),
+			Options: ero,
 		}
 		extensionRanges = append(extensionRanges, rr)
 	}
