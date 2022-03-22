@@ -237,7 +237,9 @@ message TestAllTypesProto2 {
 
   // message_set test case.
   message MessageSetCorrect {
-    option message_set_wire_format = true;
+    // MessageSets are not supported by the Go protobuf implemetation.
+    // We could build with `-tags protolegacy`, but we dont need this.
+    // option message_set_wire_format = true;
 
     extensions 4 to max;
   }
