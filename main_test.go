@@ -21,20 +21,17 @@ func TestFiledescriptorSetConformance(t *testing.T) {
 	//    5 deprecated
 	//    10 with compiler issues to be fixed
 	skip := map[string]bool{
-		// deprecated in Go
-		"testdata/conformance/unittest_lite.proto":                 true, // golib deprecation proto1 featurea
-		"testdata/conformance/unittest_lite_imports_nonlite.proto": true, // golib deprecation proto1 featurea
-		"testdata/conformance/unittest_mset.proto":                 true, // golib deprecation proto1 featurea
-		"testdata/conformance/unittest_mset_wire_format.proto":     true, // golib deprecation proto1 featurea
-		"testdata/conformance/map_lite_unittest.proto":             true, // golib deprecation proto1 featurea
 		// compiler issues to be worked out
-		"testdata/conformance/map_unittest.proto":                 true, // groups panic
-		"testdata/conformance/test_messages_proto2.proto":         true, // has invalid default: could not parse value for int64: "-9.123456789e+18"
-		"testdata/conformance/unittest.proto":                     true, // groups panic
-		"testdata/conformance/unittest_embed_optimize_for.proto":  true, // panic
-		"testdata/conformance/unittest_enormous_descriptor.proto": true, // not equal
-		"testdata/conformance/unittest_no_field_presence.proto":   true, // panic
-		"testdata/conformance/unittest_optimize_for.proto":        true, // panic
+		"testdata/conformance/unittest_lite.proto":                 true, // not equal
+		"testdata/conformance/unittest_lite_imports_nonlite.proto": true, // groups panic
+		"testdata/conformance/map_lite_unittest.proto":             true, // not equal
+		"testdata/conformance/map_unittest.proto":                  true, // groups panic
+		"testdata/conformance/test_messages_proto2.proto":          true, // has invalid default: could not parse value for int64: "-9.123456789e+18"
+		"testdata/conformance/unittest.proto":                      true, // groups panic
+		"testdata/conformance/unittest_embed_optimize_for.proto":   true, // panic
+		"testdata/conformance/unittest_enormous_descriptor.proto":  true, // not equal
+		"testdata/conformance/unittest_no_field_presence.proto":    true, // panic
+		"testdata/conformance/unittest_optimize_for.proto":         true, // panic
 	}
 	require.NoError(t, err)
 	for _, file := range files {
