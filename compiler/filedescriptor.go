@@ -135,7 +135,7 @@ func (b *messageBuilder) addEntry(e *parser.MessageEntry) {
 	case e.Option != nil:
 		b.buildOption(e.Option)
 	case e.Oneof != nil:
-		b.buildOneof(e.Oneof)
+		b.buildOneof(e.Oneof, md)
 	case e.Extend != nil:
 		extend, groups := newExtend(e.Extend, b.proto3, b.scope, b.types)
 		md.Extension = append(md.Extension, extend...)
@@ -204,7 +204,7 @@ func newUninterpretedOption(o *parser.Option, scope []string, types *types) *pb.
 	return opt
 }
 
-func (b *messageBuilder) buildOneof(po *parser.OneOf) {
+func (b *messageBuilder) buildOneof(po *parser.OneOf, md *pb.DescriptorProto) {
 	o := &pb.OneofDescriptorProto{
 		Name:    &po.Name,
 		Options: nil,
@@ -222,6 +222,11 @@ func (b *messageBuilder) buildOneof(po *parser.OneOf) {
 		case e.Field != nil:
 			fieldDesc := fdBuilder.createField(e.Field)
 			b.messageDesc.Field = append(b.messageDesc.Field, fieldDesc)
+			if group := e.Field.Group; group != nil {
+				m := newMessage(group.Name, group.Entries, b.proto3, b.scope, b.types)
+				md.NestedType = append(md.NestedType, m)
+			}
+
 		case e.Option != nil:
 			if o.Options == nil {
 				o.Options = &pb.OneofOptions{}

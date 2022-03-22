@@ -170,6 +170,16 @@ func analyseMessageEntries(messageEntries []*parser.MessageEntry, scope []string
 			analyseExtend(me.Extend, scope, t)
 		case me.Field != nil:
 			analyseField(me.Field, scope, t)
+		case me.Oneof != nil:
+			analyseOneof(me.Oneof, scope, t)
+		}
+	}
+}
+
+func analyseOneof(oneof *parser.OneOf, scope []string, t *types) {
+	for _, oe := range oneof.Entries {
+		if oe.Field != nil {
+			analyseField(oe.Field, scope, t)
 		}
 	}
 }
