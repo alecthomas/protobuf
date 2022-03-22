@@ -115,6 +115,7 @@ type Extensions struct {
 	Pos lexer.Position
 
 	Extensions []*Range `"extensions" @@ { "," @@ }`
+	Options    Options  `[ "[" @@ { "," @@ } "]" ]`
 }
 
 type Reserved struct {
@@ -125,10 +126,9 @@ type Reserved struct {
 }
 
 type Range struct {
-	Start   int     `@Int`
-	End     *int    `  [ "to" ( @Int`
-	Max     bool    `           | @"max" ) ]`
-	Options Options `[ "[" @@ { "," @@ } "]" ]`
+	Start int  `@Int`
+	End   *int `  [ "to" ( @Int`
+	Max   bool `           | @"max" ) ]`
 }
 
 type Extend struct {
