@@ -66,36 +66,35 @@ func unquote(token lexer.Token) (lexer.Token, error) {
 				out.WriteRune(escaped)
 				state = uqDefault
 			}
+			continue
 		case uqHex:
-			if unicode.Is(unicode.ASCII_Hex_Digit, rn) {
+			if unicode.Is(unicode.ASCII_Hex_Digit, rn) && len(digits) < 2 {
 				digits += string(rn)
-			} else {
-				if err := flushDigits(digits, 16, &out); err != nil {
-					return token, fmt.Errorf("%s: %w", token.Pos, err)
-				}
-				out.WriteRune(rn)
-				state = uqDefault
-				digits = ""
+				continue
 			}
+			if err := flushDigits(digits, 16, &out); err != nil {
+				return token, fmt.Errorf("%s: %w", token.Pos, err)
+			}
+			state = uqDefault
+			digits = ""
 		case uqOctal:
-			if unicode.IsDigit(rn) {
+			if unicode.IsDigit(rn) && len(digits) < 3 {
 				digits += string(rn)
-			} else {
-				if err := flushDigits(digits, 8, &out); err != nil {
-					return token, fmt.Errorf("%s: %w", token.Pos, err)
-				}
-				out.WriteRune(rn)
-				state = uqDefault
-				digits = ""
+				continue
 			}
+			if err := flushDigits(digits, 8, &out); err != nil {
+				return token, fmt.Errorf("%s: %w", token.Pos, err)
+			}
+			state = uqDefault
+			digits = ""
 		case uqDefault:
-			if rn == '\\' {
-				state = uqEscape
-			} else {
-				out.WriteRune(rn)
-			}
 		default:
 			panic(state)
+		}
+		if rn == '\\' {
+			state = uqEscape
+		} else {
+			out.WriteRune(rn)
 		}
 	}
 	if digits != "" {
@@ -112,6 +111,9 @@ func flushDigits(digits string, base int, out *strings.Builder) error {
 	if err != nil {
 		return fmt.Errorf("invalid base %d numeric value %s", base, digits)
 	}
-	out.WriteRune(rune(n))
+	if n > 255 {
+		return fmt.Errorf("base %d value %s larger than 255", base, digits)
+	}
+	out.WriteByte(byte(n))
 	return nil
 }
