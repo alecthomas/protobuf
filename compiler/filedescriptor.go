@@ -333,7 +333,6 @@ var scalars = map[parser.Scalar]pb.FieldDescriptorProto_Type{
 func (b *fieldBuilder) createField(pField *parser.Field) *pb.FieldDescriptorProto {
 	fType, typeName := fieldType(pField, b.scope, b.types)
 	name := fieldName(pField)
-	options, defaultValue := newFieldOptions(pField, b.scope, b.types)
 	df := &pb.FieldDescriptorProto{
 		Name:           &name,
 		Number:         fieldTag(pField),
@@ -341,13 +340,12 @@ func (b *fieldBuilder) createField(pField *parser.Field) *pb.FieldDescriptorProt
 		Label:          fieldLabel(pField, b.proto3, b.oneofIndex != nil),
 		Proto3Optional: proto3Optional(pField, b.proto3),
 
-		Type:         &fType, // Message, Enum, Group, string, int32,...
-		TypeName:     typeName,
-		Extendee:     b.extendee,
-		DefaultValue: defaultValue,
-		OneofIndex:   b.oneofIndex,
-		Options:      options,
+		Type:       &fType, // Message, Enum, Group, string, int32,...
+		TypeName:   typeName,
+		Extendee:   b.extendee,
+		OneofIndex: b.oneofIndex,
 	}
+	df.Options = newFieldOptions(pField, df, b.scope, b.types)
 
 	return df
 }
@@ -406,7 +404,7 @@ func newFieldDescriptorProtoType(t *parser.Type, scope []string, types *types) (
 	panic("unimplemented type, probably map")
 }
 
-func newFieldOptions(field *parser.Field, scope []string, types *types) (*pb.FieldOptions, *string) {
+func newFieldOptions(field *parser.Field, fd *pb.FieldDescriptorProto, scope []string, types *types) *pb.FieldOptions {
 	var options parser.Options
 	if field.Direct != nil && len(field.Direct.Options) > 0 {
 		options = field.Direct.Options
@@ -414,27 +412,86 @@ func newFieldOptions(field *parser.Field, scope []string, types *types) (*pb.Fie
 		options = field.Group.Options
 	}
 	if len(options) == 0 {
-		return nil, nil
+		return nil
 	}
 
-	var defaultValue *string
 	opts := &pb.FieldOptions{}
 	for _, o := range options {
 		// The "default" option for a field is handled differently than
 		// other options - DefaultValue is a field in the FieldDescriptor
-		if o.Name[0].Name == "default" {
-			dv := o.Value.ToString()
-			defaultValue = &dv
-			continue
+		switch {
+		case len(o.Name) == 1 && o.Name[0].Name == "default":
+			fd.DefaultValue = formatDefault(o.Value, *fd.Type)
+		case len(o.Name) == 1 && o.Name[0].Name == "json_name" && o.Value.String != nil:
+			fd.JsonName = o.Value.String
+		default:
+			opt := newUninterpretedOption(o, scope, types)
+			opts.UninterpretedOption = append(opts.UninterpretedOption, opt)
 		}
-		opt := newUninterpretedOption(o, scope, types)
-		opts.UninterpretedOption = append(opts.UninterpretedOption, opt)
 	}
 
 	if len(opts.UninterpretedOption) == 0 {
-		return nil, defaultValue
+		return nil
 	}
-	return opts, defaultValue
+	return opts
+}
+
+// formatDefault formats a value as a string suitable for the field type.
+// descriptor.proto describes some of this, but compared to what protoc
+// does, some of that description is wrong. Most of the formatting
+// chosen here was to make the conformance tests pass. Ideally, protoc
+// would be "reverse-engineered" to spec out exactly how default values
+// should be formatted.
+func formatDefault(val *parser.Value, fType pb.FieldDescriptorProto_Type) *string {
+	switch fType { //nolint:exhaustive // default case is after switch
+	case pb.FieldDescriptorProto_TYPE_INT64, pb.FieldDescriptorProto_TYPE_INT32,
+		pb.FieldDescriptorProto_TYPE_UINT64, pb.FieldDescriptorProto_TYPE_UINT32,
+		pb.FieldDescriptorProto_TYPE_FIXED64, pb.FieldDescriptorProto_TYPE_FIXED32,
+		pb.FieldDescriptorProto_TYPE_SFIXED64, pb.FieldDescriptorProto_TYPE_SFIXED32,
+		pb.FieldDescriptorProto_TYPE_SINT64, pb.FieldDescriptorProto_TYPE_SINT32:
+		if val.Number == nil || !val.Number.IsInt() {
+			break
+		}
+		dv := val.Number.Text('g', 64)
+		return &dv
+	case pb.FieldDescriptorProto_TYPE_FLOAT, pb.FieldDescriptorProto_TYPE_DOUBLE:
+		if val.Number == nil {
+			break
+		}
+		// Not sure if this is right, but it works!
+		dv := strings.ToLower(fmt.Sprintf("%v", val.Number))
+		return &dv
+	case pb.FieldDescriptorProto_TYPE_STRING:
+		if val.String == nil {
+			break
+		}
+		return val.String
+	case pb.FieldDescriptorProto_TYPE_BYTES:
+		if val.String == nil {
+			break
+		}
+		escapedStr := ""
+		for _, b := range []byte(*val.String) {
+			switch {
+			case b == '\n':
+				escapedStr += `\n`
+			case b == '\r':
+				escapedStr += `\r`
+			case b == '\t':
+				escapedStr += `\t`
+			case b == '"' || b == '\'' || b == '\\':
+				escapedStr += `\`
+				fallthrough
+			case b >= 0x20 && b <= 0x7E: // printable
+				escapedStr += string(b)
+			default:
+				escapedStr += fmt.Sprintf(`\%03o`, uint(b))
+			}
+		}
+		return &escapedStr
+	}
+	dv := val.ToString()
+	return &dv
 }
 
 func newMapEntry(f *parser.Field, scope []string, types *types) *pb.DescriptorProto {
