@@ -17,27 +17,7 @@ import (
 func TestFiledescriptorSetConformance(t *testing.T) {
 	files, err := filepath.Glob("testdata/conformance/*.proto")
 	require.NoError(t, err)
-	// skip test 15 out of 47 conformance tests:
-	//    5 deprecated
-	//    10 with compiler issues to be fixed
-	skip := map[string]bool{
-		// compiler issues to be worked out
-		"testdata/conformance/unittest_lite.proto":                 true, // not equal
-		"testdata/conformance/unittest_lite_imports_nonlite.proto": true, // invalid default
-		"testdata/conformance/map_lite_unittest.proto":             true, // not equal
-		"testdata/conformance/map_unittest.proto":                  true, // invalid default
-		"testdata/conformance/test_messages_proto2.proto":          true, // has invalid default: could not parse value for int64: "-9.123456789e+18"
-		"testdata/conformance/unittest.proto":                      true, // invalid default
-		"testdata/conformance/unittest_embed_optimize_for.proto":   true, // invalid default
-		"testdata/conformance/unittest_enormous_descriptor.proto":  true, // not equal
-		"testdata/conformance/unittest_no_field_presence.proto":    true, // invalid default
-		"testdata/conformance/unittest_optimize_for.proto":         true, // invalid default
-	}
-	require.NoError(t, err)
 	for _, file := range files {
-		if skip[file] {
-			continue
-		}
 		t.Run(file, func(t *testing.T) {
 			fdName := filepath.Base(file)
 			importPaths := []string{"testdata/conformance/"}
