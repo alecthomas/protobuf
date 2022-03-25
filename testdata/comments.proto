@@ -21,5 +21,10 @@ option (foo) = {
 service Service {
   rpc Test (Test) returns (Test);
   // Comment within a Service
-  rpc Test2 (Test) returns (Test);
+  rpc Test2 (Test) returns (Test) {
+    // Comment within a Method
+    option (foo) = true;
+    // Another comment within a Method
+  }
+  // Another comment within a Service
 }
