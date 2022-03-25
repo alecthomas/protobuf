@@ -148,8 +148,10 @@ type Service struct {
 type ServiceEntry struct {
 	Pos lexer.Position
 
-	Option *Option `  "option" @@`
-	Method *Method `| @@`
+	Comments *Comments `@@?`
+
+	Option *Option `( "option" @@`
+	Method *Method `| @@ )`
 }
 
 type Method struct {
