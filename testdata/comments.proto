@@ -17,3 +17,9 @@ option (foo) = {
   f2: "bar"
   // trailing comment
 }
+
+service Service {
+  rpc Test (Test) returns (Test);
+  // Comment within a Service
+  rpc Test2 (Test) returns (Test);
+}
