@@ -576,7 +576,7 @@ func mapTypeStr(s string) string {
 
 func newService(s *parser.Service, scope []string, types *types) *pb.ServiceDescriptorProto {
 	sd := &pb.ServiceDescriptorProto{Name: &s.Name}
-	for _, e := range s.Entry {
+	for _, e := range s.Entries {
 		if e.Method != nil {
 			sd.Method = append(sd.Method, newMethod(e.Method, scope, types))
 		} else if e.Option != nil {
@@ -602,11 +602,17 @@ func newMethod(m *parser.Method, scope []string, types *types) *pb.MethodDescrip
 	if outputType != pb.FieldDescriptorProto_TYPE_MESSAGE {
 		panic(fmt.Sprintf("%s: method %s should have Message as response type", m.Pos, m.Name))
 	}
+	var options []*parser.Option
+	for _, entry := range m.Entries {
+		if entry.Option != nil {
+			options = append(options, entry.Option)
+		}
+	}
 	md := &pb.MethodDescriptorProto{
 		Name:            &m.Name,
 		InputType:       inputTypeName,
 		OutputType:      outputTypeName,
-		Options:         newMethodOptions(m.Options, scope, types),
+		Options:         newMethodOptions(options, scope, types),
 		ClientStreaming: clientStreaming,
 		ServerStreaming: serverStreaming,
 	}

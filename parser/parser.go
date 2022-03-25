@@ -141,28 +141,34 @@ type Extend struct {
 type Service struct {
 	Pos lexer.Position
 
-	Name  string          `"service" @Ident`
-	Entry []*ServiceEntry `"{" { @@ [ ";" ] } "}"`
+	Name    string          `"service" @Ident`
+	Entries []*ServiceEntry `[ "{" { @@ [ ";" ] } "}" ]`
 }
 
 type ServiceEntry struct {
 	Pos lexer.Position
 
-	Comments *Comments `@@?`
-
-	Option *Option `( "option" @@`
-	Method *Method `| @@ )`
+	Comment *Comment `@@`
+	Option  *Option  `| "option" @@`
+	Method  *Method  `| @@`
 }
 
 type Method struct {
 	Pos lexer.Position
 
-	Name              string  `"rpc" @Ident`
-	StreamingRequest  bool    `"(" [ @"stream" ]`
-	Request           *Type   `    @@ ")"`
-	StreamingResponse bool    `"returns" "(" [ @"stream" ]`
-	Response          *Type   `              @@ ")"`
-	Options           Options `[ "{" { "option" @@ ";" } "}" ]`
+	Name              string         `"rpc" @Ident`
+	StreamingRequest  bool           `"(" [ @"stream" ]`
+	Request           *Type          `    @@ ")"`
+	StreamingResponse bool           `"returns" "(" [ @"stream" ]`
+	Response          *Type          `              @@ ")"`
+	Entries           []*MethodEntry `[ "{" { @@ [ ";" ] } "}" ]`
+}
+
+type MethodEntry struct {
+	Pos lexer.Position
+
+	Comment *Comment `@@`
+	Option  *Option  `| "option" @@`
 }
 
 type Enum struct {

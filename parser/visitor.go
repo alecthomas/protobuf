@@ -112,20 +112,26 @@ func (e *Extend) children() (out []Node) {
 }
 
 func (s *Service) children() (out []Node) {
-	for _, entry := range s.Entry {
+	for _, entry := range s.Entries {
 		out = append(out, entry)
 	}
 	return
 }
 
 func (s *ServiceEntry) children() (out []Node) {
-	return []Node{s.Option, s.Method}
+	return []Node{s.Option, s.Method, s.Comment}
 }
 
 func (m *Method) children() (out []Node) {
 	out = []Node{m.Request, m.Response}
-	out = append(out, m.Options.children()...)
+	for _, entry := range m.Entries {
+		out = append(out, entry)
+	}
 	return
+}
+
+func (m *MethodEntry) children() (out []Node) {
+	return []Node{m.Option, m.Comment}
 }
 
 func (e *Enum) children() (out []Node) {
