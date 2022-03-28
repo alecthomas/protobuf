@@ -5,18 +5,18 @@ syntax = "proto2";
   Test 2
  */
 message Test {
-  repeated string s = 1;
-  optional string other = 2 [
+  repeated /*  Comment */ string s = /*  Comment */ 1;
+  optional /*  Comment */ string other /*  Comment */ = 2 [
     // We are about to comment
     default = "a" // Commenting on default
   ];
 }
 
-message Empty {
+message /*  Comment */  Empty {
   // Empty message
 }
 
-option (foo) = {
+option /*  Comment */ (foo) = {
   // Comment before field
   f1: "foo"
   /* multi-line
@@ -26,8 +26,8 @@ option (foo) = {
   // trailing comment
 }
 
-service Service {
-  rpc Test (Test) returns (Test);
+service /*  Comment */  Service {
+  rpc /*  Comment */ Test /*  Comment */  (Test) /*  Comment */  returns /*  Comment */  (Test) /*  Comment */ ;
   // Comment within a Service
   rpc Test2 (Test) returns (Test) {
     // Comment within a Method
@@ -37,7 +37,7 @@ service Service {
   // Another comment within a Service
 }
 
-enum TestEnum {
+enum /*  Comment */  TestEnum {
   // Pre comment
   UNSET = 0;
   // Middle comment

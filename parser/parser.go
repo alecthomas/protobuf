@@ -37,7 +37,7 @@ type Entry struct {
 	Pos lexer.Position
 
 	Comment *Comment `@@`
-	Package string   `| "package" @(Ident { "." Ident })`
+	Package string   `| "package" Comment* @(Ident { "." Ident })`
 	Import  *Import  `| @@`
 	Message *Message `| @@`
 	Service *Service `| @@`
@@ -47,7 +47,7 @@ type Entry struct {
 }
 
 type Import struct {
-	Public bool   `"import" @("public")?`
+	Public bool   `"import" Comment* @("public")?`
 	Name   string `@String`
 }
 
@@ -135,14 +135,14 @@ type Range struct {
 type Extend struct {
 	Pos lexer.Position
 
-	Reference string   `"extend" @("."? Ident { "." Ident })`
+	Reference string   `"extend" Comment* @("."? Ident { "." Ident })`
 	Fields    []*Field `"{" { @@ [ ";" ] } "}"`
 }
 
 type Service struct {
 	Pos lexer.Position
 
-	Name    string          `"service" @Ident`
+	Name    string          `"service" Comment* @Ident`
 	Entries []*ServiceEntry `[ "{" { @@ [ ";" ] } "}" ]`
 }
 
@@ -150,17 +150,17 @@ type ServiceEntry struct {
 	Pos lexer.Position
 
 	Comment *Comment `@@`
-	Option  *Option  `| "option" @@`
+	Option  *Option  `| "option" Comment* @@`
 	Method  *Method  `| @@`
 }
 
 type Method struct {
 	Pos lexer.Position
 
-	Name              string         `"rpc" @Ident`
-	StreamingRequest  bool           `"(" [ @"stream" ]`
-	Request           *Type          `    @@ ")"`
-	StreamingResponse bool           `"returns" "(" [ @"stream" ]`
+	Name              string         `"rpc" Comment* @Ident Comment* `
+	StreamingRequest  bool           `"(" Comment* [ @"stream" ]`
+	Request           *Type          `    @@ ")" Comment*`
+	StreamingResponse bool           `"returns" Comment* "(" [ @"stream" ]`
 	Response          *Type          `              @@ ")"`
 	Entries           []*MethodEntry `[ "{" { @@ [ ";" ] } "}" ]`
 }
@@ -175,7 +175,7 @@ type MethodEntry struct {
 type Enum struct {
 	Pos lexer.Position
 
-	Name   string       `"enum" @Ident`
+	Name   string       `"enum" Comment* @Ident`
 	Values []*EnumEntry `"{" { @@ { ";" } } "}"`
 }
 
@@ -184,8 +184,8 @@ type EnumEntry struct {
 
 	Comment  *Comment   `@@`
 	Value    *EnumValue `| @@`
-	Option   *Option    `| "option" @@`
-	Reserved *Reserved  `| "reserved" @@`
+	Option   *Option    `| "option" Comment* @@`
+	Reserved *Reserved  `| "reserved" Comment* @@`
 }
 
 type Options []*Option
@@ -202,7 +202,7 @@ type EnumValue struct {
 type Message struct {
 	Pos lexer.Position
 
-	Name    string          `"message" @Ident`
+	Name    string          `"message" Comment* @Ident`
 	Entries []*MessageEntry `"{" { @@ ( ";"* ) } "}"`
 }
 
@@ -241,9 +241,9 @@ type Field struct {
 
 	Comments *Comments `@@?`
 
-	Optional bool `[   @"optional"`
-	Required bool `  | @"required"`
-	Repeated bool `  | @"repeated" ]`
+	Optional bool `[   @"optional" Comment*`
+	Required bool `  | @"required" Comment*`
+	Repeated bool `  | @"repeated" Comment* ]`
 
 	Group  *Group  `( @@`
 	Direct *Direct `| @@ ) ";"*`
@@ -256,7 +256,7 @@ type Direct struct {
 
 	Type *Type  `@@`
 	Name string `@Ident`
-	Tag  int    `"=" @Int`
+	Tag  int    `Comment* "=" Comment* @Int`
 
 	Options Options `[ "[" @@ { "," @@ } "]" ]`
 }
