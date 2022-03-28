@@ -139,12 +139,11 @@ func (e *Enum) children() (out []Node) {
 	for _, enum := range e.Values {
 		out = append(out, enum)
 	}
-	out = append(out, e.TrailingComments.children()...)
 	return
 }
 
 func (e *EnumEntry) children() (out []Node) {
-	return []Node{e.Value, e.Option, e.Reserved}
+	return []Node{e.Value, e.Option, e.Reserved, e.Comment}
 }
 
 func (o Options) children() (out []Node) {

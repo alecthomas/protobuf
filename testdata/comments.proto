@@ -37,4 +37,14 @@ service Service {
   // Another comment within a Service
 }
 
+enum TestEnum {
+  // Pre comment
+  UNSET = 0;
+  // Middle comment
+  TEST = 1;
+  // Comment one
+  // Comment two
+  // Comment three
+}
+
 // This file ends with a comment
