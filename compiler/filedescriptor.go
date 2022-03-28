@@ -147,6 +147,8 @@ func (b *messageBuilder) addEntry(e *parser.MessageEntry) {
 	case e.Extensions != nil:
 		er := newExtensionRanges(e.Extensions, b.scope, b.types)
 		md.ExtensionRange = append(md.ExtensionRange, er...)
+	case e.Comment != nil:
+		// Skip comments for now
 	default:
 		panic(fmt.Sprintf("%s: cannot interpret MessageEntry", e.Pos))
 	}

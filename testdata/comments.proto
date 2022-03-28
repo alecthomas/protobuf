@@ -8,6 +8,10 @@ message Test {
   repeated string s = 1;
 }
 
+message Empty {
+  // Empty message
+}
+
 option (foo) = {
   // Comment before field
   f1: "foo"

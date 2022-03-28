@@ -207,24 +207,21 @@ type Message struct {
 	Pos lexer.Position
 
 	Name    string          `"message" @Ident`
-	Entries []*MessageEntry `"{" { @@ } "}"`
+	Entries []*MessageEntry `"{" { @@ ( ";"* ) } "}"`
 }
 
 type MessageEntry struct {
 	Pos lexer.Position
 
-	Comments *Comments `@@?`
-
-	Enum       *Enum       `( @@`
-	Option     *Option     ` | "option" @@`
-	Message    *Message    ` | @@`
-	Oneof      *OneOf      ` | @@`
-	Extend     *Extend     ` | @@`
-	Reserved   *Reserved   ` | "reserved" @@`
-	Extensions *Extensions ` | @@`
-	Field      *Field      ` | @@ ) { ";" }`
-
-	TrailingComments *Comments `@@?`
+	Comment    *Comment    `@@`
+	Enum       *Enum       `| @@`
+	Option     *Option     `| "option" @@`
+	Message    *Message    `| @@`
+	Oneof      *OneOf      `| @@`
+	Extend     *Extend     `| @@`
+	Reserved   *Reserved   `| "reserved" @@`
+	Extensions *Extensions `| @@`
+	Field      *Field      `| @@`
 }
 
 type OneOf struct {
