@@ -6,6 +6,10 @@ syntax = "proto2";
  */
 message Test {
   repeated string s = 1;
+  optional string other = 2 [
+    // We are about to comment
+    default = "a" // Commenting on default
+  ];
 }
 
 message Empty {

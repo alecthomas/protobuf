@@ -75,12 +75,14 @@ func (o *OptionName) children() []Node { return nil }
 type Value struct {
 	Pos lexer.Position
 
-	String    *string    `  @String+`
-	Number    *big.Float `| ("-" | "+")? (@Float | @Int)`
-	Bool      *Boolean   `| @("true"|"false")`
-	Reference *string    `| @("."? Ident { "." Ident })`
-	ProtoText *ProtoText `| "{" @@? "}"`
-	Array     *Array     `| @@`
+	String    *string    `( @String+`
+	Number    *big.Float `  | ("-" | "+")? (@Float | @Int)`
+	Bool      *Boolean   `  | @("true"|"false")`
+	Reference *string    `  | @("."? Ident { "." Ident })`
+	ProtoText *ProtoText `  | "{" @@? "}"`
+	Array     *Array     `  | @@ )`
+
+	TrailingComments *Comments `@@?`
 }
 
 type Boolean bool
