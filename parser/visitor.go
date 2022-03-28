@@ -165,9 +165,7 @@ func (m *Message) children() (out []Node) {
 }
 
 func (m *MessageEntry) children() (out []Node) {
-	out = append(out, m.Comments.children()...)
-	out = append(out, m.Enum, m.Option, m.Message, m.Oneof, m.Extend, m.Reserved, m.Extensions, m.Field)
-	out = append(out, m.TrailingComments.children()...)
+	out = append(out, m.Enum, m.Option, m.Message, m.Oneof, m.Extend, m.Reserved, m.Extensions, m.Field, m.Comment)
 	return
 }
 

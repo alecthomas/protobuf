@@ -511,6 +511,8 @@ func newAST(file string, r io.Reader) (*ast, error) {
 			a.options = append(a.options, e.Option)
 		case e.Extend != nil:
 			a.extends = append(a.extends, e.Extend)
+		case e.Comment != nil:
+			// Ignore comments for now
 		default:
 			return nil, fmt.Errorf("%s: cannot interpret Entry", e.Pos)
 		}
