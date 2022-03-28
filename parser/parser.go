@@ -36,15 +36,14 @@ type Comment struct {
 type Entry struct {
 	Pos lexer.Position
 
-	Comments *Comments `@@?`
-
-	Package string   `(   "package" @(Ident { "." Ident })`
-	Import  *Import  `  | @@`
-	Message *Message `  | @@`
-	Service *Service `  | @@`
-	Enum    *Enum    `  | @@`
-	Option  *Option  `  | "option" @@`
-	Extend  *Extend  `  | @@ )`
+	Comment *Comment `@@`
+	Package string   `| "package" @(Ident { "." Ident })`
+	Import  *Import  `| @@`
+	Message *Message `| @@`
+	Service *Service `| @@`
+	Enum    *Enum    `| @@`
+	Option  *Option  `| "option" @@`
+	Extend  *Extend  `| @@`
 }
 
 type Import struct {
@@ -412,7 +411,7 @@ var (
 		{"Float", `[-+]?(\d*\.\d+([eE][-+]?\d+)?|\d+[eE][-+]?\d+|inf)`, nil},
 		{"Int", `[-+]?(0[xX][0-9A-Fa-f]+)|([-+]?\d+)`, nil},
 		{"Whitespace", `[ \t\n\r\s]+`, nil},
-		{"Comment", `(/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/)|(//(.*)[^\n]*\n)`, nil},
+		{"Comment", `(/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/)|(//(.*)[^\n]*(\n|$))`, nil},
 		{"Symbols", `[/={}\[\]()<>.,;:]`, nil},
 	})
 
