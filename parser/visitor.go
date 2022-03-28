@@ -63,7 +63,9 @@ func (o *Option) children() (out []Node) {
 }
 
 func (v *Value) children() (out []Node) {
-	return []Node{v.ProtoText, v.Array}
+	out = []Node{v.ProtoText, v.Array}
+	out = append(out, v.TrailingComments.children()...)
+	return
 }
 
 func (p *ProtoText) children() (out []Node) {
