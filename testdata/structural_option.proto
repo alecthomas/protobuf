@@ -7,6 +7,7 @@ option (test.pkg.structural_option) = {
   [test.pkg.e]: ["foo", "foo2"]
   inner { inner: [{s: "foobar"}, {s: "foobar2"}] }
   inner { s: "bar2" }
+  inner { }
 };
 
 message Test {

@@ -79,7 +79,7 @@ type Value struct {
 	Number    *big.Float `| ("-" | "+")? (@Float | @Int)`
 	Bool      *Boolean   `| @("true"|"false")`
 	Reference *string    `| @("."? Ident { "." Ident })`
-	ProtoText *ProtoText `| "{" @@ "}"`
+	ProtoText *ProtoText `| "{" @@? "}"`
 	Array     *Array     `| @@`
 }
 
