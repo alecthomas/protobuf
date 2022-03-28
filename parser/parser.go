@@ -176,21 +176,16 @@ type Enum struct {
 	Pos lexer.Position
 
 	Name   string       `"enum" @Ident`
-	Values []*EnumEntry `"{" { @@ { ";" } }`
-
-	TrailingComments Comments `@@* "}"`
+	Values []*EnumEntry `"{" { @@ { ";" } } "}"`
 }
 
 type EnumEntry struct {
 	Pos lexer.Position
 
-	Comments *Comments `@@?`
-
-	Value    *EnumValue `(   @@`
-	Option   *Option    `  | "option" @@`
-	Reserved *Reserved  `  | "reserved" @@ )`
-
-	TrailingComments *Comments `@@?`
+	Comment  *Comment   `@@`
+	Value    *EnumValue `| @@`
+	Option   *Option    `| "option" @@`
+	Reserved *Reserved  `| "reserved" @@`
 }
 
 type Options []*Option
