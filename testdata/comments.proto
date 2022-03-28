@@ -36,3 +36,5 @@ service Service {
   }
   // Another comment within a Service
 }
+
+// This file ends with a comment

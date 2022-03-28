@@ -48,8 +48,7 @@ func (c *Comment) children() (out []Node) {
 }
 
 func (e *Entry) children() (out []Node) {
-	out = append(out, e.Comments.children()...)
-	out = append(out, e.Import, e.Message, e.Service, e.Enum, e.Option, e.Extend)
+	out = append(out, e.Import, e.Message, e.Service, e.Enum, e.Option, e.Extend, e.Comment)
 	return
 }
 
