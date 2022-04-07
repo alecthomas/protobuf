@@ -109,7 +109,8 @@ func newTypes(asts []*ast) *types {
 func analyseTypes(ast *ast, t *types) {
 	scope := []string{}
 	if ast.pkg != "" {
-		scope = append(scope, ast.pkg)
+		parts := strings.Split(ast.pkg, ".")
+		scope = append(scope, parts...)
 	}
 
 	for _, m := range ast.messages {
