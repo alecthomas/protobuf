@@ -62,7 +62,7 @@ func newFileDescriptor(ast *ast, types *types) *pb.FileDescriptorProto {
 
 	if ast.pkg != "" {
 		b.fileDesc.Package = &ast.pkg
-		b.scope = append(b.scope, ast.pkg)
+		b.scope = append(b.scope, strings.Split(ast.pkg, ".")...)
 	}
 	fd.Options = newFileOptions(ast.options, b.scope, b.types)
 

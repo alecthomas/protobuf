@@ -1,13 +1,15 @@
 syntax = "proto3";
 
-package pkg;
+package org.proj.pkg;
 
 message Nest {
   message Egg {
     optional string chick = 1;
   }
-  optional .pkg.Nest.Egg egg1 = 1;
-  optional pkg.Nest.Egg egg2 = 2;
-  optional Nest.Egg egg3 = 3;
-  optional Egg egg4 = 4;
+  optional .org.proj.pkg.Nest.Egg egg1 = 1;
+  optional org.proj.pkg.Nest.Egg egg2 = 2;
+  optional proj.pkg.Nest.Egg egg3 = 3;
+  optional pkg.Nest.Egg egg4 = 4;
+  optional Nest.Egg egg5 = 5;
+  optional Egg egg6 = 6;
 }
