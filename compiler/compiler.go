@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 
 	"github.com/alecthomas/protobuf/parser"
 	"google.golang.org/protobuf/encoding/prototext"
@@ -45,23 +46,6 @@ type ast struct {
 // FileDescriptorSet is the intermediary representation typically
 // passed to proto plugins.
 func Compile(files, importPaths []string, includeImports bool) (*pb.FileDescriptorSet, error) {
-	all, filtered, err := compileFileDescriptorSets(files, importPaths, includeImports)
-	if err != nil {
-		return nil, err
-	}
-	err = resolveCustomOptions(all, filtered)
-	if err != nil {
-		return nil, err
-	}
-	return filtered, nil
-}
-
-// compileFileDescriptorSets returns a FileDescriptorSet of all given
-// proto files _and_ their transitive dependencies as well as a
-// FileDescriptorSet of only the given proto files without their
-// transitive dependencies if includeImports is if false. If
-// includeImports is true all and filter FileDescriptorSets are identical.
-func compileFileDescriptorSets(files, importPaths []string, includeImports bool) (all *pb.FileDescriptorSet, filtered *pb.FileDescriptorSet, err error) {
 	done := map[string]bool{}
 	origFiles := map[string]bool{}
 	for _, file := range files {
@@ -69,11 +53,11 @@ func compileFileDescriptorSets(files, importPaths []string, includeImports bool)
 	}
 	asts, err := readProtos(files, importPaths, done)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	types := newTypes(asts)
-	all = &pb.FileDescriptorSet{}
-	filtered = &pb.FileDescriptorSet{}
+	all := &pb.FileDescriptorSet{}
+	filtered := &pb.FileDescriptorSet{}
 	for _, a := range asts {
 		fd := newFileDescriptor(a, types)
 		all.File = append(all.File, fd)
@@ -81,17 +65,23 @@ func compileFileDescriptorSets(files, importPaths []string, includeImports bool)
 			filtered.File = append(filtered.File, fd)
 		}
 	}
-	return all, filtered, nil
+	err = resolveCustomOptions(all, filtered, types)
+	if err != nil {
+		return nil, err
+	}
+	return filtered, nil
 }
 
-func resolveCustomOptions(all, filtered *pb.FileDescriptorSet) error {
+func resolveCustomOptions(all, filtered *pb.FileDescriptorSet, types *types) error {
 	reg, err := NewRegistry(all)
 	if err != nil {
 		return err
 	}
 
+	r := &scopedResolver{resolver: reg, types: types}
+
 	for _, fd := range filtered.File {
-		if err := resolveFileOptions(reg, fd); err != nil {
+		if err := resolveFileOptions(r, fd); err != nil {
 			return err
 		}
 	}
@@ -103,7 +93,41 @@ type resolver interface {
 	protoregistry.MessageTypeResolver
 }
 
-func resolveFileOptions(r resolver, fd *pb.FileDescriptorProto) error {
+type scopedResolver struct {
+	resolver
+	scope []string
+	types *types
+}
+
+func (sr *scopedResolver) FindExtensionByName(field protoreflect.FullName) (et protoreflect.ExtensionType, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			et, err = nil, protoregistry.NotFound
+		}
+	}()
+	// lookup full name and strip off leading "." (FindExtensionByName does
+	// not want the leading dot)
+	fullname := protoreflect.FullName(sr.types.extensionName(string(field), sr.scope)[1:])
+	return sr.resolver.FindExtensionByName(fullname)
+}
+
+func (sr *scopedResolver) pushScopes(scopes ...string) {
+	sr.scope = append(sr.scope, scopes...)
+}
+
+func (sr *scopedResolver) popScope() {
+	sr.scope = sr.scope[:len(sr.scope)-1]
+}
+
+func (sr *scopedResolver) clearScopes() {
+	sr.scope = []string{}
+}
+
+func resolveFileOptions(r *scopedResolver, fd *pb.FileDescriptorProto) error {
+	if fd.GetPackage() != "" {
+		r.pushScopes(strings.Split(fd.GetPackage(), ".")...)
+	}
+
 	if err := resolveUninterpretedOptions(r, fd.GetOptions()); err != nil {
 		return err
 	}
@@ -127,10 +151,12 @@ func resolveFileOptions(r resolver, fd *pb.FileDescriptorProto) error {
 			return err
 		}
 	}
+	r.clearScopes()
 	return nil
 }
 
-func resolveMessageOptions(r resolver, md *pb.DescriptorProto) error {
+func resolveMessageOptions(r *scopedResolver, md *pb.DescriptorProto) error {
+	r.pushScopes(md.GetName())
 	if err := resolveUninterpretedOptions(r, md.GetOptions()); err != nil {
 		return err
 	}
@@ -164,6 +190,7 @@ func resolveMessageOptions(r resolver, md *pb.DescriptorProto) error {
 			return err
 		}
 	}
+	r.popScope()
 	return nil
 }
 

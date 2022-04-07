@@ -70,24 +70,3 @@ func loadPB(t *testing.T, file string) *pb.FileDescriptorSet {
 	require.NoError(t, err)
 	return fds
 }
-
-func TestUninterpretedOptions(t *testing.T) {
-	fdName := "17_proto2_custom_options.proto"
-	importPaths := []string{"testdata"}
-	_, fds, err := compileFileDescriptorSets([]string{fdName}, importPaths, false)
-	require.NoError(t, err)
-	require.Equal(t, 1, len(fds.File))
-	fd := fds.File[0]
-	require.Equal(t, 2, len(fd.MessageType))
-	message := fd.MessageType[1]
-	require.Equal(t, "User", message.GetName())
-	uOpts := message.Options.UninterpretedOption
-	require.Equal(t, 7, len(uOpts))
-
-	// option (.pkg.opt1).s1 = "opt1-s1";
-	require.Equal(t, 2, len(uOpts[0].Name))
-	require.Equal(t, ".pkg.opt1", uOpts[0].Name[0].GetNamePart())
-	require.True(t, uOpts[0].Name[0].GetIsExtension())
-	require.Equal(t, "s1", uOpts[0].Name[1].GetNamePart())
-	require.False(t, uOpts[0].Name[1].GetIsExtension())
-}

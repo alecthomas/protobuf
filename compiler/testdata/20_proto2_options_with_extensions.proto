@@ -1,0 +1,24 @@
+syntax = "proto2";
+
+package org.proj.pkg;
+
+import "google/protobuf/descriptor.proto";
+
+message OrgOptions {
+  optional bool private = 1;
+
+  extensions 1000 to max;
+}
+
+extend OrgOptions {
+  optional bool super_private = 1000;
+}
+
+extend google.protobuf.FieldOptions {
+  optional OrgOptions org = 7654321;
+}
+
+message Foo {
+  optional string name = 1 [(org) = {private: true}];
+  optional string gender = 2 [(org) = {[pkg.super_private]: true}];
+}
