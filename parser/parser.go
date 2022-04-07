@@ -386,8 +386,8 @@ func (v *Value) indentString(indent string) string {
 		return v.ProtoText.indentString(indent)
 	case v.Array != nil:
 		return v.Array.indentString(indent)
-	default:
-		return "UNKNOWN-VALUE"
+	default: // everything is nill
+		return "{}"
 	}
 }
 
