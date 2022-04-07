@@ -43,6 +43,7 @@ func TestParser(t *testing.T) {
 			  option (strings) = "1" "2";
 			  option deprecated = true;
 			  option deprecated = false;
+			  option (msg) = {};
 			}
 			`,
 		expected: &Proto{
@@ -77,6 +78,10 @@ func TestParser(t *testing.T) {
 						{Option: &Option{
 							Name:  []*OptionName{{Name: "deprecated"}},
 							Value: &Value{Bool: boolP(false)},
+						}},
+						{Option: &Option{
+							Name:  []*OptionName{{Name: "(msg)"}},
+							Value: &Value{ProtoText: &ProtoText{}},
 						}},
 					},
 				}},
@@ -122,6 +127,7 @@ func TestProtoTextString(t *testing.T) {
 			Fields: []*ProtoTextField{
 				{Name: "aString", Value: &Value{String: strP("abc")}},
 				{Type: "aNum", Value: &Value{Number: toBig(12)}},
+				{Type: "aMsg", Value: &Value{ProtoText: &ProtoText{}}},
 				{Name: "nest", Value: &Value{ProtoText: &ProtoText{Fields: []*ProtoTextField{
 					{Name: "egg", Value: &Value{String: strP("chick")}},
 					{Type: "ext", Value: &Value{String: strP("penguin")}},
@@ -131,6 +137,7 @@ func TestProtoTextString(t *testing.T) {
 		want: `{
     aString: "abc"
     [aNum]: 12
+    [aMsg]: {}
     nest: {
       egg: "chick"
       [ext]: "penguin"

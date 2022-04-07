@@ -78,7 +78,7 @@ type Value struct {
 	Number    *big.Float `  | ("-" | "+")? (@Float | @Int)`
 	Bool      *Boolean   `  | @("true"|"false")`
 	Reference *string    `  | @("."? Ident { "." Ident })`
-	ProtoText *ProtoText `  | "{" @@? "}"`
+	ProtoText *ProtoText `  | @@`
 	Array     *Array     `  | @@ )`
 
 	TrailingComments *Comments `@@?`
@@ -91,7 +91,7 @@ func (b *Boolean) Capture(v []string) error { *b = v[0] == "true"; return nil }
 type ProtoText struct {
 	Pos lexer.Position
 
-	Fields []*ProtoTextField `( @@ ( "," | ";" )? )*`
+	Fields []*ProtoTextField `"{" ( @@ ( "," | ";" )? )* Comment* "}"`
 
 	TrailingComments *Comments `@@?`
 }
@@ -354,6 +354,9 @@ func (p *ProtoText) String() string {
 
 func (p *ProtoText) indentString(indent string) string {
 	var b strings.Builder
+	if len(p.Fields) == 0 {
+		return "{}"
+	}
 	b.WriteString("{\n")
 	for _, f := range p.Fields {
 		indent2 := indent + "  "
