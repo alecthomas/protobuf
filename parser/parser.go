@@ -162,7 +162,8 @@ type Method struct {
 	Request           *Type          `    @@ ")" Comment*`
 	StreamingResponse bool           `"returns" Comment* "(" [ @"stream" ]`
 	Response          *Type          `              @@ ")"`
-	Entries           []*MethodEntry `[ "{" { @@ [ ";" ] } "}" ]`
+	HasEntries        bool           `[ @"{" `
+	Entries           []*MethodEntry `       { @@ [ ";" ] } "}" ]`
 }
 
 type MethodEntry struct {

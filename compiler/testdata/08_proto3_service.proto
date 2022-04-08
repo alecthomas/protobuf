@@ -10,7 +10,9 @@ message Request {
 }
 
 service Greeter {
-  rpc Hello (Request) returns (pkg2.M5);
+  rpc Hello (Request) returns (pkg2.M5) {
+    // no options here, but an empty option block
+  }; 
   rpc HelloClientStream (stream .pkg.M3) returns (.pkg.HelloResponse);
   rpc HelloServerStream (HelloRequest) returns (stream HelloResponse);
   rpc HelloBiDiStream (stream HelloRequest) returns (stream HelloResponse);
