@@ -5,7 +5,7 @@ all:  build test lint  ## build, test and lint go source
 ci: clean check-uptodate all  ## Full clean build and up-to-date checks as run on CI
 
 check-uptodate: sync pb tidy
-	test -z "$$(git status --porcelain)"
+	test -z "$$(git status --porcelain -- go.mod go.sum '*.proto' '*.pb')"
 
 .PHONY: all check-uptodate ci clean
 
