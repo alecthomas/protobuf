@@ -4,6 +4,7 @@
 package compiler
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -552,14 +553,19 @@ func newASTFromPath(file string, importPaths []string) (*ast, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer r.Close()
 	return newAST(file, r)
 }
 
 func search(file string, importPaths []string) (io.ReadCloser, error) {
 	for _, path := range importPaths {
 		fname := filepath.Join(path, file)
-		if f, err := os.Open(fname); err == nil {
+		f, err := os.Open(fname)
+		if err == nil {
 			return f, nil
+		}
+		if !errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("unexpected error trying to open %q: %w", file, err)
 		}
 	}
 	return nil, fmt.Errorf("cannot find %q on import paths", file)
