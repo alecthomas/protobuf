@@ -614,7 +614,7 @@ func newMethod(m *parser.Method, scope []string, types *types) *pb.MethodDescrip
 		Name:            &m.Name,
 		InputType:       inputTypeName,
 		OutputType:      outputTypeName,
-		Options:         newMethodOptions(options, scope, types),
+		Options:         newMethodOptions(options, m.HasEntries, scope, types),
 		ClientStreaming: clientStreaming,
 		ServerStreaming: serverStreaming,
 	}
@@ -622,8 +622,8 @@ func newMethod(m *parser.Method, scope []string, types *types) *pb.MethodDescrip
 	return md
 }
 
-func newMethodOptions(po []*parser.Option, scope []string, types *types) *pb.MethodOptions {
-	if len(po) == 0 {
+func newMethodOptions(po []*parser.Option, hasEntries bool, scope []string, types *types) *pb.MethodOptions {
+	if len(po) == 0 && !hasEntries {
 		return nil
 	}
 	opts := &pb.MethodOptions{}
