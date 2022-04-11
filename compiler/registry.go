@@ -24,6 +24,9 @@ func NewRegistry(fds *descriptorpb.FileDescriptorSet) (*Registry, error) {
 
 // FindExtensionByName implements protoregistry.ExtensionTypeResolver.
 func (f *Registry) FindExtensionByName(field protoreflect.FullName) (protoreflect.ExtensionType, error) {
+	if desc, err := protoregistry.GlobalTypes.FindExtensionByName(field); err == nil {
+		return desc, nil
+	}
 	desc, err := f.FindDescriptorByName(field)
 	if err != nil {
 		return nil, err
@@ -37,6 +40,9 @@ func (f *Registry) FindExtensionByName(field protoreflect.FullName) (protoreflec
 
 // FindExtensionByNumber implements protoregistry.ExtensionTypeResolver.
 func (f *Registry) FindExtensionByNumber(message protoreflect.FullName, field protoreflect.FieldNumber) (protoreflect.ExtensionType, error) {
+	if desc, err := protoregistry.GlobalTypes.FindExtensionByNumber(message, field); err == nil {
+		return desc, nil
+	}
 	// FileDescriptor and MessageDescriptor implement this interface.
 	type extensionContainer interface {
 		Messages() protoreflect.MessageDescriptors
@@ -76,6 +82,9 @@ func (f *Registry) FindExtensionByNumber(message protoreflect.FullName, field pr
 
 // FindMessageByName implements protoregistry.MessageTypeResolver.
 func (f *Registry) FindMessageByName(name protoreflect.FullName) (protoreflect.MessageType, error) {
+	if desc, err := protoregistry.GlobalTypes.FindMessageByName(name); err == nil {
+		return desc, nil
+	}
 	desc, err := f.FindDescriptorByName(name)
 	if err != nil {
 		return nil, err
@@ -89,6 +98,9 @@ func (f *Registry) FindMessageByName(name protoreflect.FullName) (protoreflect.M
 
 // FindMessageByURL implements protoregistry.MessageTypeResolver.
 func (f *Registry) FindMessageByURL(url string) (protoreflect.MessageType, error) {
+	if desc, err := protoregistry.GlobalTypes.FindMessageByURL(url); err == nil {
+		return desc, nil
+	}
 	message := protoreflect.FullName(url)
 	// Strip off before the last slash - we only look locally for the
 	// message and do not hit the network. The part after the last slash

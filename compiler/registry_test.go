@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"google.golang.org/genproto/googleapis/api/annotations"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
@@ -129,6 +130,16 @@ func TestFindMessageByURL(t *testing.T) {
 			}
 		})
 	}
+}
+
+// relies on import of "google.golang.org/genproto/googleapis/api/annotations"
+func TestConcreteType(t *testing.T) {
+	files := newRegistry(t)
+	et, err := files.FindExtensionByName("google.api.http")
+	require.NoError(t, err)
+	ev := et.New()
+	_, ok := ev.Message().Interface().(*annotations.HttpRule)
+	require.True(t, ok, "unexpected extension type")
 }
 
 func newRegistry(t *testing.T) *Registry {
