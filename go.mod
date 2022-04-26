@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/alecthomas/kong v0.4.1
-	github.com/alecthomas/participle/v2 v2.0.0-alpha7
+	github.com/alecthomas/participle/v2 v2.0.0-alpha8.0.20220425121015-e4bab27f94f6
 	github.com/alecthomas/repr v0.0.0-20210801044451-80ca428c5142
 	github.com/google/go-cmp v0.5.6
 	github.com/stretchr/testify v1.7.0

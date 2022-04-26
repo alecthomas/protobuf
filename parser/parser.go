@@ -36,18 +36,18 @@ type Comment struct {
 type Entry struct {
 	Pos lexer.Position
 
-	Comment *Comment `@@`
-	Package string   `| "package" Comment* @(Ident { "." Ident })`
+	Comment *Comment `@@?`
+	Package string   `( "package" @(Ident { "." Ident })`
 	Import  *Import  `| @@`
 	Message *Message `| @@`
 	Service *Service `| @@`
 	Enum    *Enum    `| @@`
 	Option  *Option  `| "option" @@`
-	Extend  *Extend  `| @@`
+	Extend  *Extend  `| @@ )`
 }
 
 type Import struct {
-	Public bool   `"import" Comment* @("public")?`
+	Public bool   `"import" @("public")?`
 	Name   string `@String`
 }
 
@@ -91,7 +91,7 @@ func (b *Boolean) Capture(v []string) error { *b = v[0] == "true"; return nil }
 type ProtoText struct {
 	Pos lexer.Position
 
-	Fields []*ProtoTextField `"{" ( @@ ( "," | ";" )? )* Comment* "}"`
+	Fields []*ProtoTextField `"{" ( @@ ( "," | ";" )? )* "}"`
 
 	TrailingComments *Comments `@@?`
 }
@@ -135,14 +135,14 @@ type Range struct {
 type Extend struct {
 	Pos lexer.Position
 
-	Reference string   `"extend" Comment* @("."? Ident { "." Ident })`
+	Reference string   `"extend" @("."? Ident { "." Ident })`
 	Fields    []*Field `"{" { @@ [ ";" ] } "}"`
 }
 
 type Service struct {
 	Pos lexer.Position
 
-	Name    string          `"service" Comment* @Ident`
+	Name    string          `"service" @Ident`
 	Entries []*ServiceEntry `[ "{" { @@ [ ";" ] } "}" ]`
 }
 
@@ -150,17 +150,17 @@ type ServiceEntry struct {
 	Pos lexer.Position
 
 	Comment *Comment `@@`
-	Option  *Option  `| "option" Comment* @@`
+	Option  *Option  `| "option" @@`
 	Method  *Method  `| @@`
 }
 
 type Method struct {
 	Pos lexer.Position
 
-	Name              string         `"rpc" Comment* @Ident Comment* `
-	StreamingRequest  bool           `"(" Comment* [ @"stream" ]`
-	Request           *Type          `    @@ ")" Comment*`
-	StreamingResponse bool           `"returns" Comment* "(" [ @"stream" ]`
+	Name              string         `"rpc" @Ident `
+	StreamingRequest  bool           `"(" [ @"stream" ]`
+	Request           *Type          `    @@ ")"`
+	StreamingResponse bool           `"returns" "(" [ @"stream" ]`
 	Response          *Type          `              @@ ")"`
 	HasEntries        bool           `[ @"{" `
 	Entries           []*MethodEntry `       { @@ [ ";" ] } "}" ]`
@@ -176,7 +176,7 @@ type MethodEntry struct {
 type Enum struct {
 	Pos lexer.Position
 
-	Name   string       `"enum" Comment* @Ident`
+	Name   string       `"enum" @Ident`
 	Values []*EnumEntry `"{" { @@ { ";" } } "}"`
 }
 
@@ -185,8 +185,8 @@ type EnumEntry struct {
 
 	Comment  *Comment   `@@`
 	Value    *EnumValue `| @@`
-	Option   *Option    `| "option" Comment* @@`
-	Reserved *Reserved  `| "reserved" Comment* @@`
+	Option   *Option    `| "option" @@`
+	Reserved *Reserved  `| "reserved" @@`
 }
 
 type Options []*Option
@@ -203,7 +203,7 @@ type EnumValue struct {
 type Message struct {
 	Pos lexer.Position
 
-	Name    string          `"message" Comment* @Ident`
+	Name    string          `"message" @Ident`
 	Entries []*MessageEntry `"{" { @@ ( ";"* ) } "}"`
 }
 
@@ -242,9 +242,9 @@ type Field struct {
 
 	Comments *Comments `@@?`
 
-	Optional bool `[   @"optional" Comment*`
-	Required bool `  | @"required" Comment*`
-	Repeated bool `  | @"repeated" Comment* ]`
+	Optional bool `[   @"optional"`
+	Required bool `  | @"required"`
+	Repeated bool `  | @"repeated" ]`
 
 	Group  *Group  `( @@`
 	Direct *Direct `| @@ ) ";"*`
@@ -257,7 +257,7 @@ type Direct struct {
 
 	Type *Type  `@@`
 	Name string `@Ident`
-	Tag  int    `Comment* "=" Comment* @Int`
+	Tag  int    `Comment* "=" @Int`
 
 	Options Options `[ "[" @@ { "," @@ } "]" ]`
 }
@@ -307,18 +307,12 @@ var stringToScalar = map[string]Scalar{
 }
 
 func (s *Scalar) Parse(lex *lexer.PeekingLexer) error {
-	token, err := lex.Peek(0)
-	if err != nil {
-		return fmt.Errorf("failed to peek next token: %w", err)
-	}
+	token := lex.Peek()
 	scalar, ok := stringToScalar[token.Value]
 	if !ok {
 		return participle.NextMatch
 	}
-	_, err = lex.Next()
-	if err != nil {
-		return fmt.Errorf("failed to read next token: %w", err)
-	}
+	lex.Next()
 	*s = scalar
 	return nil
 }
@@ -404,14 +398,14 @@ func (a *Array) indentString(indent string) string {
 }
 
 var (
-	lex = lexer.MustSimple([]lexer.Rule{
-		{"String", `"(\\"|[^"])*"|'(\\'|[^'])*'`, nil},
-		{"Ident", `[a-zA-Z_]([a-zA-Z_0-9])*`, nil},
-		{"Float", `[-+]?(\d*\.\d+([eE][-+]?\d+)?|\d+[eE][-+]?\d+|inf)`, nil},
-		{"Int", `[-+]?(0[xX][0-9A-Fa-f]+)|([-+]?\d+)`, nil},
-		{"Whitespace", `[ \t\n\r\s]+`, nil},
-		{"Comment", `(/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/)|(//(.*)[^\n]*(\n|$))`, nil},
-		{"Symbols", `[/={}\[\]()<>.,;:]`, nil},
+	lex = lexer.MustSimple([]lexer.SimpleRule{
+		{"String", `"(\\"|[^"])*"|'(\\'|[^'])*'`},
+		{"Ident", `[a-zA-Z_]([a-zA-Z_0-9])*`},
+		{"Float", `[-+]?(\d*\.\d+([eE][-+]?\d+)?|\d+[eE][-+]?\d+|inf)`},
+		{"Int", `[-+]?(0[xX][0-9A-Fa-f]+)|([-+]?\d+)`},
+		{"Whitespace", `[ \t\n\r\s]+`},
+		{"Comment", `(/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/)|(//(.*)[^\n]*(\n|$))`},
+		{"Symbols", `[/={}\[\]()<>.,;:]`},
 	})
 
 	parser = participle.MustBuild(
@@ -419,7 +413,7 @@ var (
 		participle.UseLookahead(2),
 		participle.Map(unquote, "String"),
 		participle.Lexer(lex),
-		participle.Elide("Whitespace"),
+		participle.Elide("Whitespace", "Comment"),
 	)
 )
 
