@@ -408,8 +408,7 @@ var (
 		{"Symbols", `[/={}\[\]()<>.,;:]`},
 	})
 
-	parser = participle.MustBuild(
-		&Proto{},
+	parser = participle.MustBuild[Proto](
 		participle.UseLookahead(2),
 		participle.Map(unquote, "String"),
 		participle.Lexer(lex),
@@ -419,19 +418,9 @@ var (
 
 // Parse protobuf.
 func Parse(filename string, r io.Reader) (*Proto, error) {
-	p := &Proto{}
-	err := parser.Parse(filename, r, p)
-	if err != nil {
-		return p, err
-	}
-	return p, nil
+	return parser.Parse(filename, r)
 }
 
 func ParseString(filename string, source string) (*Proto, error) {
-	p := &Proto{}
-	err := parser.ParseString(filename, source, p)
-	if err != nil {
-		return p, err
-	}
-	return p, nil
+	return parser.ParseString(filename, source)
 }

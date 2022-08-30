@@ -36,6 +36,12 @@ linters:
     - cyclop
     - gocognit
     - gofumpt
+    - exhaustruct
+    - nosnakecase
+    - nolintlint
+    - nonamedreturns
+    - gofmt
+    - goimports
 
 linters-settings:
   govet:
