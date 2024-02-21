@@ -8,8 +8,9 @@ require (
 	github.com/alecthomas/repr v0.1.0
 	github.com/google/go-cmp v0.5.6
 	github.com/stretchr/testify v1.7.0
-	google.golang.org/genproto v0.0.0-20220407144326-9054f6ed7bac
-	google.golang.org/protobuf v1.28.0
+	google.golang.org/genproto v0.0.0-20240221002015-b0ce06bbee7c
+	google.golang.org/genproto/googleapis/api v0.0.0-20240213162025-012b6fc9bca9
+	google.golang.org/protobuf v1.32.0
 )
 
 require (
