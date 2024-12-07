@@ -3,7 +3,7 @@ module github.com/alecthomas/protobuf
 go 1.18
 
 require (
-	github.com/alecthomas/kong v0.8.1
+	github.com/alecthomas/kong v1.6.0
 	github.com/alecthomas/participle/v2 v2.1.1
 	github.com/alecthomas/repr v0.4.0
 	github.com/google/go-cmp v0.6.0
