@@ -1,6 +1,8 @@
 module github.com/alecthomas/protobuf
 
-go 1.18
+go 1.21
+
+toolchain go1.23.4
 
 require (
 	github.com/alecthomas/kong v0.8.1
@@ -8,9 +10,9 @@ require (
 	github.com/alecthomas/repr v0.4.0
 	github.com/google/go-cmp v0.6.0
 	github.com/stretchr/testify v1.8.4
-	google.golang.org/genproto v0.0.0-20240221002015-b0ce06bbee7c
-	google.golang.org/genproto/googleapis/api v0.0.0-20240213162025-012b6fc9bca9
-	google.golang.org/protobuf v1.32.0
+	google.golang.org/genproto v0.0.0-20241219192143-6b3ec007d9bb
+	google.golang.org/genproto/googleapis/api v0.0.0-20241209162323-e6fa225c2576
+	google.golang.org/protobuf v1.36.0
 )
 
 require (
