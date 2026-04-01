@@ -3,9 +3,9 @@ module github.com/alecthomas/protobuf
 go 1.18
 
 require (
-	github.com/alecthomas/kong v0.8.1
+	github.com/alecthomas/kong v1.15.0
 	github.com/alecthomas/participle/v2 v2.1.1
-	github.com/alecthomas/repr v0.4.0
+	github.com/alecthomas/repr v0.5.2
 	github.com/google/go-cmp v0.6.0
 	github.com/stretchr/testify v1.8.4
 	google.golang.org/genproto v0.0.0-20240221002015-b0ce06bbee7c
